@@ -2,7 +2,8 @@
 
 import { useId, type ReactNode } from "react";
 import Image from "next/image";
-import { ify, Interact, type InteractType } from "./utils";
+import { ify, Interact } from "./utils";
+import type { ImageType, InteractType } from './types';
 
 export const CardInfoFrom = {
   RIGHT: {

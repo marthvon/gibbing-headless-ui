@@ -2,7 +2,8 @@
 
 import { useId, type ReactNode } from "react";
 import Image from "next/image";
-import { ify, Interact, type InteractType } from "./utils";
+import { ify, Interact } from "./utils";
+import type { ImageType, InteractType } from './types';
 
 export default function Card({ image, className, cardClass, interact=Interact.HOVER, children } : {
   image: ImageType, className?: string, cardClass?: string, 

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { DetailedHTMLProps, LiHTMLAttributes, MutableRefObject, ReactNode, TouchEventHandler } from "react";
 import { useRef, useState, useEffect, useId, useMemo } from "react";
+import type { ImageType } from './types';
 import { ify } from "./utils";
 
 function getDegrees(index:number, curr_idx:number,  length:number, inactive_opacity:number=0.5) {

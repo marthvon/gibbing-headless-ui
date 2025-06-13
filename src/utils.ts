@@ -7,4 +7,3 @@ export const Interact = {
   CLICK: 2,
   HOVER_N_CLICK: 3
 } as const;
-export type InteractType = typeof Interact[keyof typeof Interact];

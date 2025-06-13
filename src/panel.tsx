@@ -111,7 +111,7 @@ export default function Panel({
     window.addEventListener('blur', handleTouchEnd);
   };
   function handleTouchMove(e: TouchEvent) {
-    for (const touch of e.touches)
+    for (const touch of Array.from(e.touches))
       if (touch.identifier === touchRef.current) {
         handleMouseMove(touch);
         break;
