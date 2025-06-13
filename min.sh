@@ -9,8 +9,8 @@ if [ -z "$DIR" ]; then
   exit 1
 fi
 
-if ! command -v minify &> /dev/null; then
-  echo "Error: 'minify' is not installed. Run 'npm install -g minify'"
+if ! command -v terser &> /dev/null; then
+  echo "Error: 'terser' is not installed. Run 'npm install -g terser'"
   exit 1
 fi
 

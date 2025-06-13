@@ -33,20 +33,6 @@ const config = {
   ] // ...
 ```
 
-## Optionally, optimize Typescript Setup
-
-> tsconfig.json
-``` json
-{
-  // ...
-  "include": [
-    // ...
-    "./node_modules/@marthvon/gibbing-headless-ui/**/*.{js,ts,jsx,tsx,mdx,css}"
-  ]
-  // ...
-}
-```
-
 # Components
 
 - ImageCarousel
