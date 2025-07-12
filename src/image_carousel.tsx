@@ -1,9 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import type { DetailedHTMLProps, LiHTMLAttributes, MutableRefObject, ReactNode, TouchEventHandler } from "react";
 import { useRef, useState, useEffect, useId, useMemo } from "react";
-import type { ImageType } from './types';
 import { ify } from "./utils";
 
 function getDegrees(index:number, curr_idx:number,  length:number, inactive_opacity:number=0.5) {
@@ -29,8 +27,8 @@ function getDegrees(index:number, curr_idx:number,  length:number, inactive_opac
   }
 }
 
-export default function ImageCarousel({ images, timeout, fit='contain', cursor_color, indicators, loader, className, children } : { 
-  images: ImageType[], timeout?: number, fit?: 'contain' | 'cover' | 'fill', className?: string
+export default function ImageCarousel({ images, timeout, cursor_color, indicators, loader, className, children } : { 
+  images: [string, ReactNode][], timeout?: number, className?: string
   cursor_color?: string, indicators?: { indicated_color: string, dormant_color: string },
   loader?: { type: 'linear-loader', fill_color: string, empty_color: string, duration: string, onBottom?: boolean }, 
   children?: ReactNode
@@ -93,28 +91,25 @@ export default function ImageCarousel({ images, timeout, fit='contain', cursor_c
       carousel_prev();
     touchX.current = null;
   }
-  return (<section className={ify("with-navbar with-sides max-h-full animate-appear opacity-0 mx-auto max-w-256",className)}>
-    { children || (loader && loader['onBottom'] !== true)? <div className="flex top-nav pb-3"><div className="flex mx-auto w-full max-w-256">
+  return (<section className={ify("image_carousel with-navbar with-sides mx-auto",className)}>
+    { children || (loader && loader['onBottom'] !== true)? <div className="flex top-nav pb-3"><div className="flex mx-auto w-full max-w-[inherit]">
       { children }
       { (loader && loader['onBottom'] !== true)? <button key={"--carousel-loader-component-"+id} onClick={pauseCarousel as ()=>void} className="ml-auto mr-3 my-1 cursor-pointer z-10">
-        <div ref={clock} className={ify("rounded w-24 h-5", loader.fill_color, loader.empty_color, loader.duration)}></div>
+        <div ref={clock} className={ify(loader.type+'-base', loader.fill_color, loader.empty_color, loader.duration)}></div>
       </button> : '' }
     </div></div> : '' }
-    { cursor_color && <button onClick={carousel_prev} className="group left-nav min-w-16 h-full cursor-pointer z-10">
-      <div className="max-h-0 max-w-0 m-auto"><div className={"-translate-1/2 text-4xl group-active:scale-150 transition-all "+cursor_color}>&lt;</div></div>
+    { cursor_color && <button onClick={carousel_prev} className="group left-nav -carousel-arrows">
+      <div className="semi-absolute m-auto"><div className={"carousel-arrows "+cursor_color}>&lt;</div></div>
     </button> }
     <ul className="main-content layers w-full h-full preserve-3d overflow-visible mx-auto" 
       onTouchEnd={onSwipe} onTouchStart={(event) => { if(event.targetTouches.length !== 0) touchX.current = event.targetTouches[0].clientX; }}
     >
-      { images.map((image, index) => 
-        <li key={image.id} className="carousel layer m-auto flex box w-full h-full transition-all duration-[800ms]" style={getDegrees(index, carousel_index, images.length)}>
-          <Image src={image.src} alt={image.alt} width={image.width} height={image.height} 
-            style={{ objectFit: fit }} className="m-auto w-full h-auto bg-center bg-no-repeat" />
-        </li>
+      { images.map(([id, image], index) => <li key={id} className="carousel layer flex box w-full h-full" 
+        style={getDegrees(index, carousel_index, images.length)}>{ image }</li>
       ) }
     </ul>
-    { cursor_color && <button onClick={carousel_next} className="group right-nav min-w-16 h-full cursor-pointer z-10">
-      <div className="max-h-0 max-w-0 m-auto"><div className={"-translate-1/2 text-4xl group-active:scale-150 transition-all "+cursor_color}>&gt;</div></div>
+    { cursor_color && <button onClick={carousel_next} className="group right-nav -carousel-arrows">
+      <div className="semi-absolute m-auto"><div className={"carousel-arrows "+cursor_color}>&gt;</div></div>
     </button> }
     { (indicators || (loader && loader['onBottom'] === true)) && <div className="layers bottom-nav w-full pt-3">
       { set_carousel && <div className="layer flex box w-full">{[...images.keys()].map(index =>
@@ -124,7 +119,7 @@ export default function ImageCarousel({ images, timeout, fit='contain', cursor_c
           } />
       )}</div> }
       { loader && loader['onBottom'] === true && <button key={"--carousel-loader-component-"+id} onClick={pauseCarousel as ()=>void} className="layer ml-auto mr-3 my-1 z-10">
-        <div ref={clock} className={ify("w-24 h-5", loader.fill_color, loader.empty_color, loader.duration)}></div>
+        <div ref={clock} className={ify(loader.type+'-base', loader.fill_color, loader.empty_color, loader.duration)}></div>
       </button> }
     </div> }
   </section>);

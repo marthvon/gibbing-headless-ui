@@ -2,7 +2,8 @@
 
 import type { ReactNode, TouchEventHandler } from "react";
 import { useEffect, useRef } from "react";
-import { ify } from "./utils";
+import { cacheRect, disable, ify } from "./utils";
+import type { PanelPreset } from "./presets.client";
 
 function scanPanelResize(value: number, ratio: (number | ('<'|'<=') | 'x')[]) {
   const evalRatioComp = {
@@ -25,12 +26,14 @@ function scanPanelResize(value: number, ratio: (number | ('<'|'<=') | 'x')[]) {
 }
 
 function panelPercentSize(side: 't'|'l'|'r'|'b', e: MouseEvent|Touch, prect: DOMRect) {
-  switch(side) {
-    case 'l': return Math.min(Math.max((e.clientX - prect.left) / prect.width, 0.0), 1.0);
-    case 'r': return Math.min(Math.max((prect.right - e.clientX) / prect.width, 0.0), 1.0);
-    case 't': return Math.min(Math.max((e.clientY - prect.top) / prect.height, 0.0), 1.0);
-    case 'b': return Math.min(Math.max((prect.bottom - e.clientY) / prect.height, 0.0), 1.0);
-  }
+  return Math.min(Math.max((()=>{
+    switch(side) {
+      case 'l': return (e.clientX - prect.left) / prect.width;
+      case 'r': return (prect.right - e.clientX) / prect.width;
+      case 't': return (e.clientY - prect.top) / prect.height;
+      case 'b': return (prect.bottom - e.clientY) / prect.height;
+    }
+  })(), 0.0), 1.0);
 }
 
 function applyPanelLockSize(
@@ -44,55 +47,42 @@ function applyPanelLockSize(
   ratio);
   if(resize_lock != 'x'){
     const new_style = 'max('+(resize_lock as number*100)+'%, '
-      +draggable.getBoundingClientRect()[
-        (side == 'l' || side == 'r')? 'width' : 'height'
+      +draggable[(side == 'l' || side == 'r')? 
+        'offsetWidth' : 'offsetHeight'
       ]+'px)';
     (side == 'l' || side == 'r')? (container.style.width = new_style) 
       : (container.style.height = new_style);
   }
 }
 
-function containerLayout(side: 't'|'l'|'r'|'b') {
-  switch(side) {
-    case 't': return 'drop-shadow-2xl flex-col rounded-b-4xl border-b-3';
-    case 'l': return 'drop-shadow-xl flex-row rounded-r-lg border-r-2';
-    case 'r': return 'drop-shadow-xl flex-row-reverse ml-auto rounded-l-lg border-l-2';
-    case 'b': return 'drop-shadow-2xl flex-col-reverse mt-auto rounded-t-4xl border-t-3';
-  }
-}
-
-function dragLayout(side: 't'|'l'|'r'|'b') {
-  switch(side) {
-    case 't': return 'w-full cursor-row-resize border-t-2 bottom-0';
-    case 'b': return 'w-full cursor-row-resize border-b-2 top-0';
-    case 'l': return 'h-full cursor-col-resize border-l-2';
-    case 'r': return 'h-full cursor-col-resize border-r-2';
-  }
-}
-
 export default function Panel({ 
-  children, modal, default_ratio, 
-  className, modalClass, dragClass, 
-  side='b', ratio=[0,'<=','x','<=',1.0]
+  children, modal, preset, className, modalClass, dragClass, 
+  default_ratio, ratio=[0,'<=','x','<=',1.0]
 } : {
-  children: ReactNode, modal: ReactNode, side?: 't'|'l'|'r'|'b', dragClass?: string,
-  className?: string, modalClass?: string, default_ratio?: number|string,
-  ratio?: (number | ('<'|'<=') | 'x')[]
+  children: ReactNode, modal: ReactNode, preset: PanelPreset,
+  dragClass?: string, className?: string, modalClass?: string, 
+  ratio?: (number | ('<'|'<=') | 'x')[], default_ratio?: number|string
 }) {
   const parent = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const draggable = useRef<HTMLDivElement>(null);
+  const prect = useRef<DOMRect>();
   const touchRef = useRef<number|null>(null);
+  
+  const styles = preset.split(' ')
+  const side = styles.pop() as 't'|'l'|'r'|'b';
 
+  useEffect(() => cacheRect(prect, parent.current), []);
   function handleMouseDown() {
+    if(prect.current == undefined) return;
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('visibilitychange', handleMouseUp);
-    window.addEventListener('blur', () => handleMouseUp);
+    window.addEventListener('blur', handleMouseUp);
   };
   function handleMouseMove(e: MouseEvent|Touch) { if(container.current && parent.current && draggable.current) {
-    const new_size = 'max('+(panelPercentSize(side, e, parent.current.getBoundingClientRect())*100)+'%, '
-      +draggable.current.getBoundingClientRect()[(side == 'l' || side == 'r')? 'width' : 'height']+'px)';
+    const new_size = 'max('+(panelPercentSize(side, e, prect.current as DOMRect)*100)+'%, '
+      +draggable.current[(side == 'l' || side == 'r')? 'offsetWidth' : 'offsetHeight']+'px)';
     (side == 'l' || side == 'r')? (container.current.style.width = new_size) 
       : (container.current.style.height = new_size);
   }}
@@ -100,10 +90,11 @@ export default function Panel({
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
     document.removeEventListener('visibilitychange', handleMouseUp);
-    window.removeEventListener('blur', () => handleMouseUp);
+    window.removeEventListener('blur', handleMouseUp);
     applyPanelLockSize(container.current!, draggable.current!, side, ratio);
   }
   const handleTouchStart : TouchEventHandler<HTMLDivElement> = (e) => {
+    if(prect.current == undefined) return;
     touchRef.current = e.targetTouches[0].identifier;
     document.addEventListener('touchmove', handleTouchMove);
     document.addEventListener('touchend', handleTouchEnd);
@@ -138,9 +129,9 @@ export default function Panel({
   }}, [ side, ratio, default_ratio ]);
   return (<div ref={parent} className={ify("layers w-full h-full",className)}>
     <div className="layer w-full h-full">{ children }</div>
-    <div ref={container} className={ify("flex layer overflow-hidden transition-all border-slate-200",containerLayout(side),modalClass)}>
-      <article className={ify("flex flex-col shrink w-full h-full select-none", side=='b'?'pt-4':(side=='t'&&'pb-4'))}>{ modal }</article>
-      <div onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} ref={draggable} className={ify("flex sticky gap-1 p-1 bg-slate-100 border-slate-400",dragLayout(side),dragClass)}>
+    <div draggable={false} onDragStart={disable} ref={container} className={ify("flex layer overflow-hidden transition-all border-slate-200",styles[0],modalClass)}>
+      <article draggable={false} onDragStart={disable} className={ify("flex flex-col shrink w-full h-full select-none drag-none", side=='b'?'pt-4':(side=='t'&&'pb-4'))}>{ modal }</article>
+      <div draggable={false} onDragStart={disable} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} ref={draggable} className={ify("flex sticky gap-1 p-1 bg-slate-100 border-slate-400",styles[1],dragClass)}>
         {(side=='l'||side=='r')? <svg className={ify("my-auto h-1/4",side=='r'&&'-scale-x-100')} height="100%" width="12" preserveAspectRatio="none" viewBox="0 0 16 80">
           <line x1="4" y1="25" x2="4" y2="55" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
           <line x1="12" y1="10" x2="12" y2="70" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />

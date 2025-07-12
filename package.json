@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui",
-  "version": "0.0.2",
+  "version": "0.2.3",
   "description": "Headless UI, integrates with NextJs well, uses React",
   "type": "module",
   "repository": {
@@ -14,9 +14,9 @@
     "UX"
   ],
   "peerDependencies": {
-    "next": "^14.0.0",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "@marthvon/frontail": ">=0.5.1"
   },
   "exports": {
     "./card.a": {
@@ -26,6 +26,18 @@
     "./card.b": {
       "import": "./dist/card.b.js",
       "types": "./types/card.b.d.ts"
+    },
+    "./digitbox": {
+      "import": "./dist/digitbox.js",
+      "types": "./types/digitbox.d.ts"
+    },
+    "./dropdown": {
+      "import": "./dist/dropdown.js",
+      "types": "./types/dropdown.d.ts"
+    },
+    "./dual_slider": {
+      "import": "./dist/dual_slider.js",
+      "types": "./types/dual_slider.d.ts"
     },
     "./grid_view": {
       "import": "./dist/grid_view.js",
@@ -39,13 +51,32 @@
       "import": "./dist/panel.js",
       "types": "./types/panel.d.ts"
     },
+    "./slider": {
+      "import": "./dist/slider.js",
+      "types": "./types/slider.d.ts"
+    },
+    "./textbox.a": {
+      "import": "./dist/textbox.a.js",
+      "types": "./types/textbox.a.d.ts"
+    },
+    "./toggle": {
+      "import": "./dist/toggle.js",
+      "types": "./types/toggle.d.ts"
+    },
     "./utils": {
       "import": "./dist/utils.js",
       "types": "./types/utils.d.ts"
+    },
+    "./presets.server": {
+      "import": "./dist/presets.server.js",
+      "types": "./types/presets.server.d.ts"
+    },
+    "./presets.client": {
+      "import": "./dist/presets.client.ts"
     }
   },
   "scripts": {
-    "build": "npx tsc && cp src/types.d.ts types/ && ./min.sh dist"
+    "build": "npx tsc && cp src/presets.client.ts dist/ && rm dist/presets.client.js types/presets.client.d.ts && ./min.sh dist && ./nexify.sh dist"
   },
   "private": false,
   "publishConfig": {
@@ -58,7 +89,6 @@
   "author": "marthvon",
   "license": "MIT",
   "devDependencies": {
-    "@types/next": "^8.0.7",
     "@types/node": "^24.0.1",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0"

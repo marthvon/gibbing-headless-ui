@@ -22,16 +22,58 @@ npm install @marthvon/gibbing-headless-ui
 
 Follow setup guide within this link <a href="https://www.npmjs.com/package/@marthvon/frontail">https://www.npmjs.com/package/@marthvon/frontail</a>
 
-## Update Tailwind Configuration
+## Setup Tailwind
 
 > tailwind.config.js
 ``` javascript
 const config = {
   content: [
     // ...
-    "./node_modules/@marthvon/gibbing-headless-ui/**/*.{js,ts,jsx,tsx,mdx,css}"
+    "./node_modules/@marthvon/gibbing-headless-ui/dist/**/*.{js,ts,jsx,tsx,mdx,css}"
   ] // ...
 ```
+
+> global.css
+``` css
+@import '../../node_modules/@marthvon/frontail/components/index.css';
+```
+Optionally, import only what you need from components
+> global.css
+``` css
+/* for example */
+@import '../../node_modules/@marthvon/frontail/components/image_carousel.css';
+@import '../../node_modules/@marthvon/frontail/components/slider.css';
+```
+
+## Optimizations: Style Inlining and Purge Unused TailwindCss
+
+> tsconfig.json
+``` json
+{
+  "compilerOptions": {
+    // ...
+    "preserveConstEnums": false,
+    "isolatedModules": false,
+    // ...
+```
+
+Alternatively, adhere to installation guide to setup the following
+``` bash
+npm install @fullhumam/postcss-purgecss --save-dev
+```
+
+### Presets Utilization for Customization
+
+In use cases of Server-Side Rendering or Static Site Generation
+``` typescript
+import { /*...*/ } from "@marthvon/gibbing-headless-ui/presets.server";
+```
+
+When component is expected to be Client Side Rendered, instead use:
+``` typescript
+import { /*...*/ } from "@marthvon/gibbing-headless-ui/presets.client";
+```
+The above focuses on inlining the class name styles and avoids talwind compilation of unused component styles. In summary, **Avoids false positives when tailwind scans for css styles to compile (ideally, *experimental*)**.
 
 # Components
 
@@ -39,6 +81,11 @@ const config = {
 - GridView
 - Card Modals
 - Panels
-- Textbox *(later)*
-- Sliders *(later)*
+- Textbox
+- Slider
+- DualSlider
+- Digitbox
+- Toggle
+- Dropdown
+- Searchbox *(later)*
 - DatePicker *(later)*

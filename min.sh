@@ -17,7 +17,7 @@ fi
 find "$DIR" -type f -name "*.js" | while read -r file; do
   echo "Minifying $file"
   terser "$file" \
-    --compress \
+    --compress directives=true \
     --mangle \
     --ecma 2020 \
     --output "$file.tmp" \
