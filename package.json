@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui",
-  "version": "0.2.3",
+  "version": "0.3.4",
   "description": "Headless UI, integrates with NextJs well, uses React",
   "type": "module",
   "repository": {

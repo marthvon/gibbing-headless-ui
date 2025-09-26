@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { ify } from "./utils";
 
@@ -23,9 +23,9 @@ export default function SmartGridView({ images, className, innerClass, cardClass
   return (<div className={ify("flex flex-row w-full overflow-y-auto overflow-x-hidden",className)}>
     { imgCols.map(img =>
       <ul className={ify("flex flex-col w-full gap-3",innerClass)}>
-      //  <li key={key} className={ify("h-fit w-full my-3 break-inside-avoid",cardClass)}>{ children }</li>
-      //{Object.entries(childrens).map(([key, children]) => (
-      //))}
+        {/* <li key={key} className={ify("h-fit w-full my-3 break-inside-avoid",cardClass)}>{ children }</li>
+      {Object.entries(childrens).map(([key, children]) => (
+      ))} */}
       </ul>
     )}
   </div>);

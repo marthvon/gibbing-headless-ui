@@ -9,7 +9,7 @@ type DualSliderProps = {
   max: number, min?: number, step?: number,
   onInput?: FormEventHandler<HTMLInputElement>, onChange?: FormEventHandler<HTMLInputElement>,
   className?: string, trackClass?: string, thumbClass?: string, backtrackClass?: string,
-  labelPos?: 'i'|'o', labelClass?: string, labelParse?: (n:number)=>string
+  labelPos?: 'i'|'o', labelClass?: string, labelParse?: (n:number)=>string, name?: string
 };
 function findPercent(min:number, curr:number, max:number) {
   return (curr-min)/(max-min);
@@ -95,7 +95,7 @@ function EventFactory(
 }
 
 const DualSlider = forwardRef<HTMLInputElement, DualSliderProps>(({
-  formId, label, max, min=0, step, onChange, onInput, labelParse,
+  formId, label, max, min=0, step, onChange, onInput, labelParse, name,
   className, trackClass, thumbClass, backtrackClass, labelPos, labelClass
 } : DualSliderProps, 
   ref: ForwardedRef<HTMLInputElement>) => 
@@ -129,7 +129,7 @@ const DualSlider = forwardRef<HTMLInputElement, DualSliderProps>(({
   useEffect(() => { events.current = { onChange, onInput } }, [onChange, onInput]);
   useEffect(() => bindRef(ref, internalRef.current), [ref]);
   const core = (<div draggable={false} onDragStart={disable} className={ify("layers items-center w-full select-none drag-none",labelPos||labelPos=='o'||className)}>
-    <input id={`${formId}-${label}`} ref={internalRef} type="hidden" />
+    <input name={name} id={`${formId}-${label}`} ref={internalRef} type="hidden" />
     <div draggable={false} onDragStart={disable} onMouseDown={inferHandlerMouse} onTouchEnd={inferHandlerTouch} ref={sliderRef} 
       className={ify("layer slider-backtrack select-none drag-none",backtrackClass)} />
     <div draggable={false} onDragStart={disable} style={{marginLeft: lp+'%', width: (rp-lp)+'%'}} 
