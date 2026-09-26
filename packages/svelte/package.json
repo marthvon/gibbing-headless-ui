@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui-svelte",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Headless UI for Svelte 5+",
   "type": "module",
   "repository": {
