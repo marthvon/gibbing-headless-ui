@@ -4,7 +4,7 @@ import type { DetailedHTMLProps, LiHTMLAttributes, MutableRefObject, ReactNode, 
 import { useRef, useState, useEffect, useId, useMemo } from "react";
 import { ify } from "./utils";
 
-function getDegrees(index:number, curr_idx:number,  length:number, inactive_opacity:number=0.5) {
+function getDegrees(index:number, curr_idx:number, length:number, inactive_opacity:number=0.5) {
   if(length < 3)
     return (index == curr_idx? {"--tw-degrees-left": "0deg", "--tw-degrees-right": "0deg", "--tw-opacity":1.0 } 
       : { "--tw-degrees-left": "90deg", "--tw-degrees-right": "-90deg", "--tw-opacity": inactive_opacity }) as 
@@ -27,8 +27,8 @@ function getDegrees(index:number, curr_idx:number,  length:number, inactive_opac
   }
 }
 
-export default function ImageCarousel({ images, timeout, cursor_color, indicators, loader, className, children } : { 
-  images: [string, ReactNode][], timeout?: number, className?: string
+export default function ImageCarousel({ images, timeout, cursor_color, indicators, loader, className, children, bg_img_opacity=0.5 } : { 
+  images: [string, ReactNode][], timeout?: number, className?: string, bg_img_opacity?: number,
   cursor_color?: string, indicators?: { indicated_color: string, dormant_color: string },
   loader?: { type: 'linear-loader', fill_color: string, empty_color: string, duration: string, onBottom?: boolean }, 
   children?: ReactNode
@@ -105,7 +105,7 @@ export default function ImageCarousel({ images, timeout, cursor_color, indicator
       onTouchEnd={onSwipe} onTouchStart={(event) => { if(event.targetTouches.length !== 0) touchX.current = event.targetTouches[0].clientX; }}
     >
       { images.map(([id, image], index) => <li key={id} className="carousel layer flex box w-full h-full" 
-        style={getDegrees(index, carousel_index, images.length)}>{ image }</li>
+        style={getDegrees(index, carousel_index, images.length, bg_img_opacity)}>{ image }</li>
       ) }
     </ul>
     { cursor_color && <button onClick={carousel_next} className="group right-nav -carousel-arrows">
