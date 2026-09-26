@@ -19,5 +19,5 @@
     "isolatedModules": false,
     "stripInternal": true
   },
-  "include": ["src"]
+  "include": ["src/**/*"]
 }

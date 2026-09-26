@@ -79,6 +79,7 @@ The above focuses on inlining the class name styles and avoids talwind compilati
 
 - ImageCarousel
 - GridView
+- SmartGridView
 - Card Modals
 - Panels
 - Textbox
@@ -88,4 +89,5 @@ The above focuses on inlining the class name styles and avoids talwind compilati
 - Toggle
 - Dropdown
 - Searchbox *(later)*
-- DatePicker *(later)*
+- DatePicker
+- DatePickerInput

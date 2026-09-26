@@ -1,4 +1,6 @@
 node_modules
 dist
 types
+packages/*/dist
+packages/*/types
 package-lock.json

@@ -1,0 +1,104 @@
+{
+  "name": "@marthvon/gibbing-headless-ui-svelte",
+  "version": "0.1.0",
+  "description": "Headless UI for Svelte 5+",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marthvon/gibbing-headless-ui.git",
+    "directory": "packages/svelte"
+  },
+  "keywords": [
+    "Components",
+    "HeadlessUi",
+    "Svelte",
+    "UI",
+    "UX"
+  ],
+  "peerDependencies": {
+    "svelte": "^5.0.0",
+    "@marthvon/frontail": ">=0.5.1"
+  },
+  "exports": {
+    "./CardA": {
+      "svelte": "./src/CardA.svelte",
+      "default": "./src/CardA.svelte"
+    },
+    "./CardB": {
+      "svelte": "./src/CardB.svelte",
+      "default": "./src/CardB.svelte"
+    },
+    "./DatePicker": {
+      "svelte": "./src/DatePicker.svelte",
+      "default": "./src/DatePicker.svelte"
+    },
+    "./DatePickerInput": {
+      "svelte": "./src/DatePickerInput.svelte",
+      "default": "./src/DatePickerInput.svelte"
+    },
+    "./Digitbox": {
+      "svelte": "./src/Digitbox.svelte",
+      "default": "./src/Digitbox.svelte"
+    },
+    "./Dropdown": {
+      "svelte": "./src/Dropdown.svelte",
+      "default": "./src/Dropdown.svelte"
+    },
+    "./DualSlider": {
+      "svelte": "./src/DualSlider.svelte",
+      "default": "./src/DualSlider.svelte"
+    },
+    "./GridView": {
+      "svelte": "./src/GridView.svelte",
+      "default": "./src/GridView.svelte"
+    },
+    "./ImageCarousel": {
+      "svelte": "./src/ImageCarousel.svelte",
+      "default": "./src/ImageCarousel.svelte"
+    },
+    "./Panel": {
+      "svelte": "./src/Panel.svelte",
+      "default": "./src/Panel.svelte"
+    },
+    "./Slider": {
+      "svelte": "./src/Slider.svelte",
+      "default": "./src/Slider.svelte"
+    },
+    "./SmartGridView": {
+      "svelte": "./src/SmartGridView.svelte",
+      "default": "./src/SmartGridView.svelte"
+    },
+    "./TextboxA": {
+      "svelte": "./src/TextboxA.svelte",
+      "default": "./src/TextboxA.svelte"
+    },
+    "./Toggle": {
+      "svelte": "./src/Toggle.svelte",
+      "default": "./src/Toggle.svelte"
+    },
+    "./utils": {
+      "import": "./src/utils.ts",
+      "types": "./src/utils.ts"
+    },
+    "./types/DatePicker": {
+      "types": "./types/DatePicker.d.ts",
+      "import": "./types/DatePicker.d.ts"
+    },
+    "./presets.client": {
+      "import": "./src/presets.client.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/",
+    "types/"
+  ],
+  "author": "marthvon",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "svelte": "^5.0.0"
+  }
+}
