@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui-svelte",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Headless UI for Svelte 5+",
   "type": "module",
   "repository": {
@@ -16,7 +16,11 @@
     "UX"
   ],
   "peerDependencies": {
-    "@marthvon/frontail": ">=0.6.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/view": "^6.0.0",
+    "@marthvon/frontail": ">=0.7.0",
+    "markdown-it": "^14.0.0 || ^15.0.0",
     "svelte": "^5.0.0"
   },
   "exports": {
@@ -48,6 +52,10 @@
       "svelte": "./src/DualSlider.svelte",
       "default": "./src/DualSlider.svelte"
     },
+    "./FilterRow": {
+      "svelte": "./src/FilterRow.svelte",
+      "default": "./src/FilterRow.svelte"
+    },
     "./GridView": {
       "svelte": "./src/GridView.svelte",
       "default": "./src/GridView.svelte"
@@ -60,6 +68,22 @@
       "svelte": "./src/Panel.svelte",
       "default": "./src/Panel.svelte"
     },
+    "./PasswordField": {
+      "svelte": "./src/PasswordField.svelte",
+      "default": "./src/PasswordField.svelte"
+    },
+    "./PhoneField": {
+      "svelte": "./src/PhoneField.svelte",
+      "default": "./src/PhoneField.svelte"
+    },
+    "./ResourceTable": {
+      "svelte": "./src/ResourceTable.svelte",
+      "default": "./src/ResourceTable.svelte"
+    },
+    "./Select": {
+      "svelte": "./src/Select.svelte",
+      "default": "./src/Select.svelte"
+    },
     "./Slider": {
       "svelte": "./src/Slider.svelte",
       "default": "./src/Slider.svelte"
@@ -68,9 +92,17 @@
       "svelte": "./src/SmartGridView.svelte",
       "default": "./src/SmartGridView.svelte"
     },
+    "./SortHeading": {
+      "svelte": "./src/SortHeading.svelte",
+      "default": "./src/SortHeading.svelte"
+    },
     "./TextboxA": {
       "svelte": "./src/TextboxA.svelte",
       "default": "./src/TextboxA.svelte"
+    },
+    "./TextEditor": {
+      "svelte": "./src/TextEditor.svelte",
+      "default": "./src/TextEditor.svelte"
     },
     "./Toggle": {
       "svelte": "./src/Toggle.svelte",
@@ -80,9 +112,21 @@
       "import": "./src/utils.ts",
       "types": "./src/utils.ts"
     },
+    "./filters": {
+      "import": "./src/_internal/filters.ts",
+      "types": "./src/_internal/filters.ts"
+    },
+    "./phone": {
+      "import": "./src/_internal/phone.ts",
+      "types": "./src/_internal/phone.ts"
+    },
+    "./sorts": {
+      "import": "./src/_internal/sorts.ts",
+      "types": "./src/_internal/sorts.ts"
+    },
     "./types/DatePicker": {
-      "types": "./types/DatePicker.d.ts",
-      "import": "./types/DatePicker.d.ts"
+      "types": "./src/_internal/date_picker.ts",
+      "import": "./src/_internal/date_picker.ts"
     },
     "./presets.client": {
       "import": "./src/presets.client.ts"
@@ -92,13 +136,30 @@
     "access": "public"
   },
   "files": [
-    "src/",
-    "types/"
+    "src/"
   ],
   "author": "marthvon",
   "license": "MIT",
   "devDependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@types/node": "^24.0.1",
+    "markdown-it": "^15.0.3",
     "svelte": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@codemirror/commands": {
+      "optional": true
+    },
+    "@codemirror/state": {
+      "optional": true
+    },
+    "@codemirror/view": {
+      "optional": true
+    },
+    "markdown-it": {
+      "optional": true
+    }
   }
 }

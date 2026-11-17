@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { untrack, type Snippet } from "svelte";
-  import type { DayCtx, HeadingCtx, WeekdayCtx } from "../types/DatePicker";
+  import type { Snippet } from "svelte";
+  import type { DayCtx, HeadingCtx, WeekdayCtx } from "./_internal/date_picker";
   import { ify, twId } from "./utils";
 
   function toIso(date: Date): string {
@@ -38,50 +38,46 @@
     return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
   }
 
-  let {
-    value, formId, label, locale, className, headingClass, gridClass, cellClass, weekdayClass,
-    oninput, onchange, prev, next, heading, weekday, day, dayMini, children,
-    ref = $bindable()
-  }: {
-    value?: string;
-    formId?: string;
-    label?: string;
-    locale?: string;
-    className?: string;
-    headingClass?: string;
-    gridClass?: string;
-    cellClass?: string;
-    weekdayClass?: string;
-    oninput?: (iso: string) => void;
-    onchange?: (iso: string) => void;
-    prev?: Snippet;
-    next?: Snippet;
-    heading?: Snippet<[HeadingCtx]>;
-    weekday?: Snippet<[WeekdayCtx]>;
-    day?: Snippet<[DayCtx]>;
-    dayMini?: Snippet<[DayCtx]>;
-    children?: Snippet;
-    ref?: HTMLInputElement;
-  } = $props();
+  export let value: string | undefined = undefined;
+  export let formId: string | undefined = undefined;
+  export let label: string | undefined = undefined;
+  export let locale: string | undefined = undefined;
+  export let className: string | undefined = undefined;
+  export let headingClass: string | undefined = undefined;
+  export let gridClass: string | undefined = undefined;
+  export let cellClass: string | undefined = undefined;
+  export let weekdayClass: string | undefined = undefined;
+  export let oninput: ((iso: string) => void) | undefined = undefined;
+  export let onchange: ((iso: string) => void) | undefined = undefined;
+  export let prev: Snippet | undefined = undefined;
+  export let next: Snippet | undefined = undefined;
+  export let heading: Snippet<[HeadingCtx]> | undefined = undefined;
+  export let weekday: Snippet<[WeekdayCtx]> | undefined = undefined;
+  export let day: Snippet<[DayCtx]> | undefined = undefined;
+  export let dayMini: Snippet<[DayCtx]> | undefined = undefined;
+  export let children: Snippet | undefined = undefined;
+  export let ref: HTMLInputElement | undefined = undefined;
 
-  const id = untrack(() => twId("datepicker", label, formId));
+  const id = twId("datepicker", label, formId);
   const todayIso = toIso(new Date());
-  let internalSelected = $state("");
-  let view = $state(untrack(() => startOfMonth(parseIso(value ?? "") ?? new Date())));
-  const selected = $derived(value !== undefined ? value : internalSelected);
-  const weekStart = $derived(firstWeekDay(locale));
-  const cells = $derived(monthCells(view, weekStart));
-  const headingLabel = $derived(new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(view));
-  const weekdays = $derived(Array.from({ length: 7 }, (_, i) => {
+  let internalSelected = "";
+  let view = startOfMonth(parseIso(value ?? "") ?? new Date());
+
+  $: selected = value !== undefined ? value : internalSelected;
+  $: weekStart = firstWeekDay(locale);
+  $: cells = monthCells(view, weekStart);
+  $: headingLabel = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(view);
+  $: weekdays = Array.from({ length: 7 }, (_, i) => {
     const dow = (weekStart + i) % 7;
     return { dow, label: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, 7 + dow)) };
-  }));
-
-  $effect(() => {
-    if (value === undefined) return;
-    const date = parseIso(value);
-    if (date != null) view = startOfMonth(date);
   });
+  $: followValue(value);
+
+  function followValue(iso: string | undefined) {
+    if (iso === undefined) return;
+    const date = parseIso(iso);
+    if (date != null) view = startOfMonth(date);
+  }
 
   function setView(date: Date) {
     view = startOfMonth(date);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, type Snippet } from "svelte";
+  import { onDestroy, type Snippet } from "svelte";
   import { ify } from "./utils";
 
   type SmartGridImg = [string, number, Snippet][];
@@ -37,38 +37,43 @@
     return layout;
   }
 
-  let {
-    images, className = undefined, innerClass = undefined, cardClass = undefined,
-    template = undefined, columns = undefined, loading = false, threshold = 0, onScrollEnd = undefined
-  }: {
-    images: SmartGridImg;
-    className?: string;
-    innerClass?: string;
-    cardClass?: string;
-    template?: Snippet;
-    columns?: number;
-    loading?: boolean;
-    threshold?: number;
-    onScrollEnd?: () => void;
-  } = $props();
+  export let images: SmartGridImg;
+  export let className: string | undefined = undefined;
+  export let innerClass: string | undefined = undefined;
+  export let cardClass: string | undefined = undefined;
+  export let template: Snippet | undefined = undefined;
+  export let columns: number | undefined = undefined;
+  export let loading: boolean = false;
+  export let threshold: number = 0;
+  export let onScrollEnd: (() => void) | undefined = undefined;
 
-  let gridEl = $state<HTMLDivElement | undefined>(undefined);
-  let rowEl = $state<HTMLDivElement | undefined>(undefined);
-  let sentinelEl = $state<HTMLDivElement | undefined>(undefined);
-  let colCount = $state(untrack(() => columns && columns > 0? columns : 1));
+  let gridEl: HTMLDivElement | undefined;
+  let rowEl: HTMLDivElement | undefined;
+  let sentinelEl: HTMLDivElement | undefined;
+  let colCount = columns && columns > 0? columns : 1;
   let prevLayout: SmartGridLayout = { columns: 0, cols: [], heights: [], placed: new Set<string>() };
   let loaded = 0;
   let pending = false;
+  let unwatchColumns: (() => void) | undefined;
+  let unwatchEnd: (() => void) | undefined;
 
-  const layout = $derived(prevLayout = relayout(images, colCount, prevLayout));
-  const cards = $derived(new Map(images.map(([ key, _ratio, image ]) => [ key, image ])));
+  $: layout = prevLayout = relayout(images, colCount, prevLayout);
+  $: cards = new Map(images.map(([ key, _ratio, image ]) => [ key, image ]));
+  $: watchColumns(columns, rowEl);
+  $: watchEnd(sentinelEl, gridEl, layout, threshold);
 
-  $effect(() => {
-    if(columns && columns > 0) {
-      colCount = columns;
+  onDestroy(() => {
+    unwatchColumns?.();
+    unwatchEnd?.();
+  });
+
+  function watchColumns(fixed: number | undefined, el: HTMLDivElement | undefined) {
+    unwatchColumns?.();
+    unwatchColumns = undefined;
+    if(fixed && fixed > 0) {
+      colCount = fixed;
       return;
     }
-    const el = rowEl;
     if(el == null)
       return;
     const readCols = () => {
@@ -78,15 +83,16 @@
     readCols();
     const resized = new ResizeObserver(readCols);
     resized.observe(el);
-    return () => resized.disconnect();
-  });
-  $effect(() => {
-    const el = sentinelEl;
-    const root = gridEl;
+    unwatchColumns = () => resized.disconnect();
+  }
+
+  function watchEnd(el: HTMLDivElement | undefined, root: HTMLDivElement | undefined, current: SmartGridLayout, margin: number) {
+    unwatchEnd?.();
+    unwatchEnd = undefined;
     if(el == null || root == null)
       return;
-    if(loaded !== layout.placed.size) {
-      loaded = layout.placed.size;
+    if(loaded !== current.placed.size) {
+      loaded = current.placed.size;
       pending = false;
     }
     const watcher = new IntersectionObserver(([ entry ]) => {
@@ -98,10 +104,10 @@
         return;
       pending = true;
       onScrollEnd?.();
-    }, { root, rootMargin: threshold+"px" });
+    }, { root, rootMargin: margin+"px" });
     watcher.observe(el);
-    return () => watcher.disconnect();
-  });
+    unwatchEnd = () => watcher.disconnect();
+  }
 </script>
 
 <div bind:this={gridEl} class={ify("smart-grid-view", className)}>

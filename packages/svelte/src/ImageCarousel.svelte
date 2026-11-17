@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Snippet } from "svelte";
+  import { onDestroy, onMount, type Snippet } from "svelte";
   import { ify } from "./utils";
 
   function getDegrees(index: number, curr_idx: number, length: number, inactive_opacity: number = 0.5) {
@@ -21,23 +21,24 @@
     }
   }
 
-  let {
-    images, timeout = undefined, className = undefined, cursor_color = undefined,
-    indicators = undefined, loader = undefined, children
-  }: {
-    images: [string, Snippet][];
-    timeout?: number;
-    className?: string;
-    cursor_color?: string;
-    indicators?: { indicated_color: string; dormant_color: string };
-    loader?: { type: "linear-loader"; fill_color: string; empty_color: string; duration: string; onBottom?: boolean };
-    children?: Snippet;
-  } = $props();
+  export let images: [string, Snippet][];
+  export let timeout: number | undefined = undefined;
+  export let className: string | undefined = undefined;
+  export let cursor_color: string | undefined = undefined;
+  export let indicators: { indicated_color: string; dormant_color: string } | undefined = undefined;
+  export let loader: { type: "linear-loader"; fill_color: string; empty_color: string; duration: string; onBottom?: boolean } | undefined = undefined;
+  export let children: Snippet | undefined = undefined;
 
-  let carousel_index = $state(0);
+  let carousel_index = 0;
   let intervalHandler: ReturnType<typeof setInterval> | null = null;
   let touchX: number | null = null;
-  let clockEl = $state<HTMLDivElement | undefined>(undefined);
+  let clockEl: HTMLDivElement | undefined;
+  let mounted = false;
+
+  $: if (mounted) restart(timeout, loader, clockEl);
+
+  onMount(() => (mounted = true));
+  onDestroy(stop);
 
   function signalIntervalHandler() {
     if(intervalHandler == null) return;
@@ -77,16 +78,19 @@
     signalIntervalHandler();
   }
 
-  $effect(() => {
+  function stop() {
     if(intervalHandler !== null) {
       clearInterval(intervalHandler);
       intervalHandler = null;
     }
-    if(timeout === undefined) return;
-    loader && clockEl?.classList.add(loader.type);
-    intervalHandler = setInterval(carousel_next, timeout * 1000);
-    return () => { if(intervalHandler !== null) clearInterval(intervalHandler); };
-  });
+  }
+
+  function restart(seconds: number | undefined, bar: typeof loader, clock: HTMLDivElement | undefined) {
+    stop();
+    if(seconds === undefined) return;
+    bar && clock?.classList.add(bar.type);
+    intervalHandler = setInterval(carousel_next, seconds * 1000);
+  }
 </script>
 
 <section class={ify("image_carousel with-navbar with-sides mx-auto", className)}>

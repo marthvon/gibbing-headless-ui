@@ -6,6 +6,7 @@ import DatePicker, { type DayCtx, type HeadingCtx, type WeekdayCtx } from "./dat
 import Dropdown from "./dropdown";
 import TextboxA from "./textbox.a";
 import { DropdownPreset, Interact } from "./presets.client";
+import { ify } from "./utils";
 
 export type DatePickerInputProps = {
   value?: string;
@@ -52,6 +53,12 @@ const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps>(funct
     if (textboxEl.current) textboxEl.current.value = selected;
   }, [selected]);
 
+  function openMenu(event: { target: EventTarget }) {
+    if (!textboxEl.current || event.target !== textboxEl.current) return;
+    const box = wrapEl.current?.querySelector<HTMLInputElement>("input.ghost-node");
+    if (box) box.checked = true;
+  }
+
   function closeMenu() {
     const box = wrapEl.current?.querySelector<HTMLInputElement>("input.ghost-node");
     if (box) box.checked = false;
@@ -76,11 +83,11 @@ const DatePickerInput = forwardRef<HTMLInputElement, DatePickerInputProps>(funct
   }
 
   return (
-    <div ref={wrapEl}>
+    <div ref={wrapEl} onFocus={openMenu} onClick={openMenu}>
       <Dropdown preset={preset} interact={interact} clickOut={clickOut} className={className} modalClass={modalClass} innerModalClass={innerModalClass}
         menu={[
           <div key="datepicker" onMouseDown={(e) => e.preventDefault()}>
-            <DatePicker ref={ref} value={selected} formId={formId} label={label} locale={locale} className={pickerClass}
+            <DatePicker ref={ref} value={selected} formId={formId} label={label} locale={locale} className={ify("datepicker-popup", pickerClass)}
               headingClass={headingClass} gridClass={gridClass} cellClass={cellClass} weekdayClass={weekdayClass}
               prev={prev} next={next} heading={heading} weekday={weekday} day={day} dayMini={dayMini}
               onInput={(iso) => { setSelected(iso); onInput?.(iso); }}

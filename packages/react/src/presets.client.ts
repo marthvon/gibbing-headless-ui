@@ -25,6 +25,13 @@ export const enum DropdownPreset {
   RIGHT="flex-row dropdown-click-right dropdown-hover-right"
 }
 
+export const enum DropdownAnchor {
+  BELOW_START="absolute top-full left-0 max-h-none max-w-none pointer-events-none peer-checked:pointer-events-auto",
+  BELOW_END="absolute top-full right-0 max-h-none max-w-none pointer-events-none peer-checked:pointer-events-auto",
+  ABOVE_START="absolute bottom-full left-0 max-h-none max-w-none pointer-events-none peer-checked:pointer-events-auto",
+  ABOVE_END="absolute bottom-full right-0 max-h-none max-w-none pointer-events-none peer-checked:pointer-events-auto"
+}
+
 export const enum Interact {
   HOVER=1,
   CLICK=2,

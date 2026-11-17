@@ -85,7 +85,7 @@
       touchIds[self] = null;
       dispatch("change", internalRefEl?.value);
     }
-    function handleTouchStart(e: TouchEvent & { currentTarget: HTMLElement }) {
+    function handleTouchStart(e: TouchEvent) {
       e.preventDefault();
       if(sliderRect == undefined) return;
       touchIds[self] = e.targetTouches[0].identifier;

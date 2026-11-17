@@ -1,25 +1,22 @@
 <script lang="ts">
-  import { untrack, type Snippet } from "svelte";
+  import type { Snippet } from "svelte";
   import { ify, twId } from "./utils";
   import { type DropdownPreset, Interact } from "./presets.client";
 
-  let {
-    className, modalClass, innerModalClass, formId, label, preset, interact, clickOut, menu, children
-  }: {
-    className?: string;
-    modalClass?: string;
-    innerModalClass?: string;
-    formId?: string;
-    label?: string;
-    preset: DropdownPreset;
-    interact: Interact;
-    clickOut?: boolean;
-    menu?: Snippet;
-    children?: Snippet;
-  } = $props();
+  export let className: string | undefined = undefined;
+  export let modalClass: string | undefined = undefined;
+  export let innerModalClass: string | undefined = undefined;
+  export let wrapperClass: string | undefined = undefined;
+  export let formId: string | undefined = undefined;
+  export let label: string | undefined = undefined;
+  export let preset: DropdownPreset;
+  export let interact: Interact;
+  export let clickOut: boolean | undefined = undefined;
+  export let menu: Snippet | undefined = undefined;
+  export let children: Snippet | undefined = undefined;
 
-  const id = untrack(() => twId("dropdown-modal", label, formId));
-  const styles = $derived(preset.split(" "));
+  const id = twId("dropdown-modal", label, formId);
+  $: styles = preset.split(" ");
 </script>
 
 <div class={ify("flex group", styles[0], className)}>
@@ -33,7 +30,8 @@
   <label for={id} class={ify(
     "dropdown-wrapper semi-absolute",
     (interact & Interact.CLICK) && styles[1],
-    (interact & Interact.HOVER) && styles[2]
+    (interact & Interact.HOVER) && styles[2],
+    wrapperClass
   )}>
     <div class={ify("dropdown-outer-modal cursor-pointer", modalClass)}><div class={ify("dropdown-modal", innerModalClass)}>
       {#if menu}{@render menu()}{/if}

@@ -6,10 +6,10 @@ import { ify } from "./utils";
 import { type DropdownPreset, Interact } from "./presets.client";
 
 export default function Dropdown({
-  className, modalClass, innerModalClass, 
+  className, modalClass, innerModalClass, wrapperClass,
   preset, interact, clickOut, menu, children
 } : {
-  className?: string, modalClass?: string, innerModalClass?: string,
+  className?: string, modalClass?: string, innerModalClass?: string, wrapperClass?: string,
   preset: DropdownPreset, interact: Interact, clickOut?: boolean
   menu: ReactNode[], children: ReactNode
 }) {
@@ -26,7 +26,8 @@ export default function Dropdown({
     <label htmlFor={id} className={ify(
       "dropdown-wrapper semi-absolute", 
       (interact & Interact.CLICK) && styles[1], 
-      (interact & Interact.HOVER) && styles[2]
+      (interact & Interact.HOVER) && styles[2],
+      wrapperClass
     )}>
       <div className={ify("dropdown-outer-modal cursor-pointer",modalClass)}><div className={ify("dropdown-modal",innerModalClass)}>
         { menu.map(el => el) }

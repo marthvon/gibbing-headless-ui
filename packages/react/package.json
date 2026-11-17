@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Headless UI for React, integrates with Next.js well",
   "type": "module",
   "repository": {
@@ -16,7 +16,11 @@
     "UX"
   ],
   "peerDependencies": {
-    "@marthvon/frontail": ">=0.6.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/view": "^6.0.0",
+    "@marthvon/frontail": ">=0.7.0",
+    "markdown-it": "^14.0.0 || ^15.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
@@ -49,6 +53,10 @@
       "import": "./dist/dual_slider.js",
       "types": "./types/dual_slider.d.ts"
     },
+    "./filter_row": {
+      "import": "./dist/filter_row.js",
+      "types": "./types/filter_row.d.ts"
+    },
     "./grid_view": {
       "import": "./dist/grid_view.js",
       "types": "./types/grid_view.d.ts"
@@ -61,6 +69,22 @@
       "import": "./dist/panel.js",
       "types": "./types/panel.d.ts"
     },
+    "./password_field": {
+      "import": "./dist/password_field.js",
+      "types": "./types/password_field.d.ts"
+    },
+    "./phone_field": {
+      "import": "./dist/phone_field.js",
+      "types": "./types/phone_field.d.ts"
+    },
+    "./resource_table": {
+      "import": "./dist/resource_table.js",
+      "types": "./types/resource_table.d.ts"
+    },
+    "./select": {
+      "import": "./dist/select.js",
+      "types": "./types/select.d.ts"
+    },
     "./slider": {
       "import": "./dist/slider.js",
       "types": "./types/slider.d.ts"
@@ -69,9 +93,17 @@
       "import": "./dist/smart_grid_view.js",
       "types": "./types/smart_grid_view.d.ts"
     },
+    "./sort_heading": {
+      "import": "./dist/sort_heading.js",
+      "types": "./types/sort_heading.d.ts"
+    },
     "./textbox.a": {
       "import": "./dist/textbox.a.js",
       "types": "./types/textbox.a.d.ts"
+    },
+    "./text_editor": {
+      "import": "./dist/text_editor.js",
+      "types": "./types/text_editor.d.ts"
     },
     "./toggle": {
       "import": "./dist/toggle.js",
@@ -80,6 +112,18 @@
     "./utils": {
       "import": "./dist/utils.js",
       "types": "./types/utils.d.ts"
+    },
+    "./filters": {
+      "import": "./dist/_internal/filters.js",
+      "types": "./types/_internal/filters.d.ts"
+    },
+    "./phone": {
+      "import": "./dist/_internal/phone.js",
+      "types": "./types/_internal/phone.d.ts"
+    },
+    "./sorts": {
+      "import": "./dist/_internal/sorts.js",
+      "types": "./types/_internal/sorts.d.ts"
     },
     "./presets.server": {
       "import": "./dist/presets.server.js",
@@ -90,7 +134,7 @@
     }
   },
   "scripts": {
-    "build": "npx tsc && cp src/presets.client.ts dist/ && rm -f dist/presets.client.js types/presets.client.d.ts && ../../min.sh dist && ../../nexify.sh dist"
+    "build": "npx tsc && cp src/presets.client.ts dist/ && rm -f dist/presets.client.js && echo 'export * from \"../dist/presets.client\";' > types/presets.client.d.ts && ../../min.sh dist && ../../nexify.sh dist"
   },
   "publishConfig": {
     "access": "public"
@@ -102,8 +146,26 @@
   "author": "marthvon",
   "license": "MIT",
   "devDependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@types/node": "^24.0.1",
     "@types/react": "^18.0.0",
-    "@types/react-dom": "^18.0.0"
+    "@types/react-dom": "^18.0.0",
+    "markdown-it": "^15.0.3"
+  },
+  "peerDependenciesMeta": {
+    "@codemirror/commands": {
+      "optional": true
+    },
+    "@codemirror/state": {
+      "optional": true
+    },
+    "@codemirror/view": {
+      "optional": true
+    },
+    "markdown-it": {
+      "optional": true
+    }
   }
 }

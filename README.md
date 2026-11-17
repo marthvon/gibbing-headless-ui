@@ -44,6 +44,18 @@ Optionally, import only what you need from components
 @import '../../node_modules/@marthvon/frontail/components/image_carousel.css';
 @import '../../node_modules/@marthvon/frontail/components/slider.css';
 ```
+Some components share stylesheets, so import these alongside their own:
+- `select.css` needs `field.css` and `dropdown.css`
+- `filter_row.css` needs `field.css`, plus `select.css` for Selects placed in the row
+- `phone_field.css` needs `field.css`, `select.css`, `dropdown.css` and `textbox.a.css`
+- `password_field.css` needs `field.css` and `textbox.a.css`
+- `resource_table.css` needs `sort_heading.css` if you render SortHeading in its `sortHeading` slot
+- `text_editor.css` needs `field.css`
+
+TextEditor is built on CodeMirror and markdown-it, which are optional peer dependencies. Install them only if you use it:
+``` bash
+npm install @codemirror/commands @codemirror/state @codemirror/view markdown-it
+```
 
 ## Optimizations: Style Inlining and Purge Unused TailwindCss
 
@@ -88,6 +100,13 @@ The above focuses on inlining the class name styles and avoids talwind compilati
 - Digitbox
 - Toggle
 - Dropdown
+- Select
+- FilterRow
+- SortHeading
+- ResourceTable
+- PasswordField
+- PhoneField
+- TextEditor
 - Searchbox *(later)*
 - DatePicker
 - DatePickerInput
