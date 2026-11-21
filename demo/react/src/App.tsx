@@ -29,7 +29,7 @@ import Toggle from "@marthvon/gibbing-headless-ui/toggle";
 import Tooltip from "@marthvon/gibbing-headless-ui/tooltip";
 import { Z } from "@marthvon/gibbing-headless-ui/utils";
 import UploadPanel from "@marthvon/gibbing-headless-ui/upload_panel";
-import { CardPreset, DropdownPreset, Interact, PanelPreset } from "@marthvon/gibbing-headless-ui/presets.client";
+import { CardPreset, DropdownPreset, Interact, LoaderPreset, PanelPreset, TooltipPreset } from "@marthvon/gibbing-headless-ui/presets.client";
 import { FILTER_SIZE, WIDE_SIZE } from "@marthvon/gibbing-headless-ui/filters";
 import { headerSort, type Sort } from "@marthvon/gibbing-headless-ui/sorts";
 
@@ -322,7 +322,7 @@ export default function App() {
           <Variant caption="Autoplay with a progress loader">
             <div className="h-56">
               <ImageCarousel timeout={5} className="h-full" cursor_color="text-zinc-700"
-                loader={{ type: "linear-loader", fill_color: "bg-indigo-600", empty_color: "bg-zinc-200", onBottom: true }}
+                loader={{ preset: LoaderPreset.LINEAR, fill_color: "bg-indigo-600", empty_color: "bg-zinc-200", onBottom: true }}
                 images={SWATCHES.slice(2, 5).map((swatch) => [swatch, slide(swatch)])} />
             </div>
           </Variant>
@@ -544,14 +544,14 @@ export default function App() {
             <Tooltip content="Saves a draft without publishing"><button className="field-box">Save draft</button></Tooltip>
           </Variant>
           <Variant caption="Render prop content, below">
-            <Tooltip preset={DropdownPreset.BOTTOM} content={() => <span className="flex flex-col"><b>Ctrl + K</b><span>Opens the command menu</span></span>}>
+            <Tooltip preset={TooltipPreset.BOTTOM} content={() => <span className="flex flex-col"><b>Ctrl + K</b><span>Opens the command menu</span></span>}>
               <button className="field-box">Shortcuts</button>
             </Tooltip>
           </Variant>
           <Variant caption="Left and right">
             <span className="flex gap-16 px-12">
-              <Tooltip preset={DropdownPreset.LEFT} content="Previous"><button className="field-box" aria-label="Previous">←</button></Tooltip>
-              <Tooltip preset={DropdownPreset.RIGHT} content="Next"><button className="field-box" aria-label="Next">→</button></Tooltip>
+              <Tooltip preset={TooltipPreset.LEFT} content="Previous"><button className="field-box" aria-label="Previous">←</button></Tooltip>
+              <Tooltip preset={TooltipPreset.RIGHT} content="Next"><button className="field-box" aria-label="Next">→</button></Tooltip>
             </span>
           </Variant>
           <Variant caption="Inline, trigger gets aria-describedby">

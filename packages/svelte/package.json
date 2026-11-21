@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui-svelte",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Headless UI for Svelte 5+",
   "type": "module",
   "repository": {
@@ -19,7 +19,7 @@
     "@codemirror/commands": "^6.0.0",
     "@codemirror/state": "^6.0.0",
     "@codemirror/view": "^6.0.0",
-    "@marthvon/frontail": ">=0.8.0",
+    "@marthvon/frontail": ">=0.8.1",
     "markdown-it": "^14.0.0 || ^15.0.0",
     "qrcode-generator": "^2.0.0",
     "svelte": "^5.0.0"

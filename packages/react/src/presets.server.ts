@@ -37,3 +37,14 @@ export enum InteractServerEnum {
   CLICK=2,
   HOVER_N_CLICK=3
 }
+
+export enum TooltipServerPreset {
+  TOP="tooltip-top",
+  BOTTOM="tooltip-bottom",
+  LEFT="tooltip-left",
+  RIGHT="tooltip-right"
+}
+
+export enum LoaderServerPreset {
+  LINEAR="linear-loader-base linear-loader | linear-loader-fill"
+}

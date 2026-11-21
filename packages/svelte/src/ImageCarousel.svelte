@@ -1,5 +1,7 @@
 <script lang="ts" context="module">
-  export type CarouselLoader = { type: "linear-loader"; fill_color: string; empty_color: string; onBottom?: boolean };
+  import { LoaderPreset } from "./presets.client";
+
+  export type CarouselLoader = { preset?: LoaderPreset; fill_color: string; empty_color: string; onBottom?: boolean };
 </script>
 
 <script lang="ts">
@@ -42,6 +44,8 @@
   let clockEl: HTMLSpanElement | undefined;
   let mounted = false;
 
+  $: [trackClass, fillClass] = (loader?.preset ?? LoaderPreset.LINEAR).split(" | ");
+
   $: if (mounted) schedule(timeout, paused, clockEl);
 
   onMount(() => (mounted = true));
@@ -82,8 +86,8 @@
 
 {#snippet clock(place: string, bar: CarouselLoader)}
   <button type="button" aria-label={paused ? "Resume carousel" : "Pause carousel"} aria-pressed={paused} onclick={() => (paused = !paused)} class={ify(place, "cursor-pointer z-[var(--z-raised,1)]")}>
-    <span bind:this={clockEl} class={ify(bar.type + "-base", bar.type, bar.empty_color)} style:--loader-duration={`${timeout ?? 5}s`}>
-      <span class={ify(bar.type + "-fill", bar.fill_color)}></span>
+    <span bind:this={clockEl} class={ify(trackClass, bar.empty_color)} style:--loader-duration={`${timeout ?? 5}s`}>
+      <span class={ify(fillClass, bar.fill_color)}></span>
     </span>
   </button>
 {/snippet}

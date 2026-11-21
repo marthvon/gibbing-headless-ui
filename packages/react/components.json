@@ -8,7 +8,7 @@
     "**`Content` props take a string or a render function.** Props typed `Content` (or `Content<[args]>`) accept a plain string, which keeps the default element and only changes its text, or a function / snippet, which replaces the element entirely and receives the listed arguments.",
     "**State is controlled by you.** Components report changes through callbacks and render what you pass back. Select, FilterRow, SortHeading and ResourceTable keep no copy of `value`, `values`, `query`, `sorts`, `page` or `selected`; update your state in the callback or nothing changes.",
     "**Ids.** `formId` prefixes generated ids so labels and error messages stay linked; every instance still gets a unique id, so repeating the same `label` is safe.",
-    "**Presets are const enums.** `DropdownPreset`, `PanelPreset`, `CardPreset` and `Interact` come from the `presets.client` module. Each preset is a set of class names, so pass the enum member, never a string you typed yourself.",
+    "**Presets are const enums.** `DropdownPreset`, `TooltipPreset`, `LoaderPreset`, `PanelPreset`, `CardPreset` and `Interact` come from the `presets.client` module. Each preset is a set of class names, so pass the enum member, never a string you typed yourself or built by joining pieces: Tailwind only keeps classes it finds written out in full.",
     "**Layering.** Popovers use `--z-popover` (50), their click-out backdrops `--z-backdrop` (40) and sticky headers `--z-sticky` (2). The `Z` export from `utils` holds the same scale.",
     "**`zIndex` for layers opened from other layers.** Dropdown, Select, DatePickerInput, PhoneField, Tooltip, ResourceTable and TextEditor take `zIndex`, which sets the popups and backdrop of that component (and of everything rendered inside it) to that value. When a component opens from inside a dialog or another popup, pass the opener's z-index plus one, e.g. `zIndex={Z.modal + 1}` inside a dialog at `Z.modal`, and keep counting up for each deeper level, so the newest layer is always on top. Never put a dropdown inside a parent with `transform`, `filter`, `opacity` below 1 or its own `z-index`, because that parent traps the popover underneath later content.",
     "**Optional peers.** TextEditor needs `@codemirror/commands`, `@codemirror/state`, `@codemirror/view` and `markdown-it`; QrCode needs `qrcode-generator`. Install them only if you use those components.",
@@ -1151,7 +1151,7 @@
         "Slides need an intrinsic width (an image, or a box like `w-96 max-w-full`); `w-full` slides collapse.",
         "Side slides are pushed about 250px outward, so give it a full-width row, not a narrow column.",
         "`timeout` (seconds) enables autoplay; `cursor_color` enables the arrows and colours them.",
-        "`loader` paints a bar that fills over `timeout` seconds and restarts on every slide change; `fill_color` colours the bar and `empty_color` the track. Clicking it pauses or resumes autoplay."
+        "`loader` paints a bar that fills over `timeout` seconds and restarts on every slide change; `fill_color` colours the bar and `empty_color` the track; `preset` (LoaderPreset, LINEAR by default) picks the loader style. Clicking it pauses or resumes autoplay."
       ],
       "importPath": "@marthvon/gibbing-headless-ui/image_carousel"
     },
@@ -2916,9 +2916,9 @@
         },
         {
           "name": "preset",
-          "type": "DropdownPreset",
+          "type": "TooltipPreset",
           "required": false,
-          "default": "DropdownPreset.TOP"
+          "default": "TooltipPreset.TOP"
         },
         {
           "name": "open",
@@ -2965,7 +2965,7 @@
       "example": "<Tooltip content=\"Saves a draft without publishing\">\n  {(trigger) => <button {...trigger} className=\"field-box\">Save draft</button>}\n</Tooltip>",
       "notes": [
         "`content` is a string or a snippet; it renders inside `role=\"tooltip\"`.",
-        "`preset` takes a DropdownPreset for the side (TOP by default, BOTTOM, LEFT, RIGHT).",
+        "`preset` takes a TooltipPreset for the side (TOP by default, BOTTOM, LEFT, RIGHT).",
         "It shows on hover (pointer devices only) and whenever focus is inside the trigger, so give non-focusable triggers `tabindex=\"0\"`.",
         "`interactive` keeps it open while the pointer is over it so links inside can be clicked; `open` pins it visible.",
         "The default bubble is dark; restyle it with `innerModalClass` (e.g. `bg-white text-zinc-700 border border-zinc-200`). `--tooltip-shift` sets the slide-in distance.",

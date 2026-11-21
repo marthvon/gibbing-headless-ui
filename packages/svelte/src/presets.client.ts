@@ -35,3 +35,14 @@ export const enum Interact {
   CLICK=2,
   HOVER_N_CLICK=3
 }
+
+export const enum TooltipPreset {
+  TOP="tooltip-top",
+  BOTTOM="tooltip-bottom",
+  LEFT="tooltip-left",
+  RIGHT="tooltip-right"
+}
+
+export const enum LoaderPreset {
+  LINEAR="linear-loader-base linear-loader | linear-loader-fill"
+}

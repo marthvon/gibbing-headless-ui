@@ -5,10 +5,10 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { ify, twId, zLayer, type Content } from "./utils";
-  import { DropdownPreset } from "./presets.client";
+  import { TooltipPreset } from "./presets.client";
 
   export let content: Content;
-  export let preset: DropdownPreset = DropdownPreset.TOP;
+  export let preset: TooltipPreset = TooltipPreset.TOP;
   export let open = false;
   export let interactive = false;
   export let zIndex: number | undefined = undefined;
@@ -19,10 +19,9 @@
   export let children: Snippet<[TooltipTrigger]> | undefined = undefined;
 
   const id = twId("tooltip");
-  $: side = "tooltip-" + preset.split(" ")[2].replace("dropdown-hover-", "");
 </script>
 
-<span class={ify("tooltip", side, className)} style={zLayer(zIndex)} data-open={open || undefined} data-interactive={interactive || undefined}>
+<span class={ify("tooltip", preset, className)} style={zLayer(zIndex)} data-open={open || undefined} data-interactive={interactive || undefined}>
   {#if children}{@render children({ "aria-describedby": id })}{/if}
   <span {id} role="tooltip" class={ify("dropdown-wrapper tooltip-wrapper", wrapperClass)}>
     <span class={ify("dropdown-outer-modal tooltip-outer", modalClass)}>

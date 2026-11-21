@@ -19,4 +19,5 @@ Read `packages/react/AI_GUIDE.md` or `packages/svelte/AI_GUIDE.md` first. They l
 - Svelte components use `export let` (legacy mode), not runes.
 - Shared helpers go in `src/_internal/`; no single-use wrapper components.
 - z-index only through frontail's scale (`--z-raised`, `--z-sticky`, `--z-backdrop`, `--z-popover`, `--z-modal`, `--z-toast`), never raw numbers.
+- Never build a class name from pieces (`"tooltip-" + side`, `` `${type}-base` ``). Tailwind and purgers only keep classes written out in full, so a joined name either goes missing or forces every variant to ship. Write each class in full in a const enum in `presets.client.ts` (and its `presets.server.ts` twin), giving new components their own preset rather than deriving from another component's.
 - Every component that renders a popup, menu, backdrop or dialog takes a `zIndex?: number` prop applied with `zLayer(zIndex)` on its root, so callers can stack it above whatever opened it (opener's value plus one). New overlay components must do the same.

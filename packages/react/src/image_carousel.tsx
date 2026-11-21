@@ -4,6 +4,7 @@ import type { CSSProperties, DetailedHTMLProps, LiHTMLAttributes, ReactNode, Tou
 import { useRef, useState, useEffect, useId } from "react";
 import { ify } from "./utils";
 import { restartLoader } from "./_internal/loader";
+import { LoaderPreset } from "./presets.client";
 
 function getDegrees(index:number, curr_idx:number, length:number, inactive_opacity:number=0.5) {
   if(length < 3)
@@ -28,7 +29,7 @@ function getDegrees(index:number, curr_idx:number, length:number, inactive_opaci
   }
 }
 
-export type CarouselLoader = { type: "linear-loader", fill_color: string, empty_color: string, onBottom?: boolean };
+export type CarouselLoader = { preset?: LoaderPreset, fill_color: string, empty_color: string, onBottom?: boolean };
 
 export default function ImageCarousel({ images, timeout, cursor_color, indicators, loader, className, children, bg_img_opacity=0.5 } : { 
   images: [string, ReactNode][], timeout?: number, className?: string, bg_img_opacity?: number,
@@ -85,11 +86,12 @@ export default function ImageCarousel({ images, timeout, cursor_color, indicator
       carousel_prev();
     touchX.current = null;
   }
+  const [trackClass, fillClass] = (loader?.preset ?? LoaderPreset.LINEAR).split(" | ");
   const clockEl = loader && <button key={"--carousel-loader-component-"+id} type="button" aria-label={paused ? "Resume carousel" : "Pause carousel"} aria-pressed={paused}
     onClick={() => setPaused((value) => !value)}
     className={ify(loader.onBottom === true ? "layer ml-auto mr-3 my-1" : "ml-auto mr-3 my-1", "cursor-pointer z-[var(--z-raised,1)]")}>
-    <span ref={clock} className={ify(loader.type+"-base", loader.type, loader.empty_color)} style={{ "--loader-duration": `${timeout ?? 5}s` } as CSSProperties}>
-      <span className={ify(loader.type+"-fill", loader.fill_color)} />
+    <span ref={clock} className={ify(trackClass, loader.empty_color)} style={{ "--loader-duration": `${timeout ?? 5}s` } as CSSProperties}>
+      <span className={ify(fillClass, loader.fill_color)} />
     </span>
   </button>;
   return (<section className={ify("image_carousel with-navbar with-sides mx-auto",className)}>

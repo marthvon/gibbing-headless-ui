@@ -29,7 +29,7 @@
   import Tooltip from "@marthvon/gibbing-headless-ui-svelte/Tooltip";
   import { Z } from "@marthvon/gibbing-headless-ui-svelte/utils";
   import UploadPanel, { type Upload } from "@marthvon/gibbing-headless-ui-svelte/UploadPanel";
-  import { CardPreset, DropdownPreset, Interact, PanelPreset } from "@marthvon/gibbing-headless-ui-svelte/presets.client";
+  import { CardPreset, DropdownPreset, Interact, LoaderPreset, PanelPreset, TooltipPreset } from "@marthvon/gibbing-headless-ui-svelte/presets.client";
   import { FILTER_SIZE, WIDE_SIZE } from "@marthvon/gibbing-headless-ui-svelte/filters";
   import { headerSort, type Sort, type SortDirection } from "@marthvon/gibbing-headless-ui-svelte/sorts";
 
@@ -349,7 +349,7 @@
       <figure class="variant"><figcaption>Autoplay with a progress loader</figcaption>
         <div class="h-56">
           <ImageCarousel timeout={5} className="h-full" cursor_color="text-zinc-700"
-            loader={{ type: "linear-loader", fill_color: "bg-indigo-600", empty_color: "bg-zinc-200", onBottom: true }}
+            loader={{ preset: LoaderPreset.LINEAR, fill_color: "bg-indigo-600", empty_color: "bg-zinc-200", onBottom: true }}
             images={[["amber", slideAmber], ["emerald", slideEmerald], ["indigo", slideIndigo]]} />
         </div>
       </figure>
@@ -667,15 +667,15 @@
         <Tooltip content="Saves a draft without publishing"><button class="field-box">Save draft</button></Tooltip>
       </figure>
       <figure class="variant"><figcaption>Snippet content, below</figcaption>
-        <Tooltip preset={DropdownPreset.BOTTOM}>
+        <Tooltip preset={TooltipPreset.BOTTOM}>
           {#snippet content()}<span class="flex flex-col"><b>Ctrl + K</b><span>Opens the command menu</span></span>{/snippet}
           <button class="field-box">Shortcuts</button>
         </Tooltip>
       </figure>
       <figure class="variant"><figcaption>Left and right</figcaption>
         <span class="flex gap-16 px-12">
-          <Tooltip preset={DropdownPreset.LEFT} content="Previous"><button class="field-box" aria-label="Previous">←</button></Tooltip>
-          <Tooltip preset={DropdownPreset.RIGHT} content="Next"><button class="field-box" aria-label="Next">→</button></Tooltip>
+          <Tooltip preset={TooltipPreset.LEFT} content="Previous"><button class="field-box" aria-label="Previous">←</button></Tooltip>
+          <Tooltip preset={TooltipPreset.RIGHT} content="Next"><button class="field-box" aria-label="Next">→</button></Tooltip>
         </span>
       </figure>
       <figure class="variant"><figcaption>Inline, trigger gets aria-describedby</figcaption>
