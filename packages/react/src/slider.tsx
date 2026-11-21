@@ -2,6 +2,7 @@
 
 import type { FormEventHandler, ForwardedRef } from "react";
 import { forwardRef, useState } from "react";
+import { formatValue, labelWidth } from "./_internal/slider";
 import { ify } from "./utils";
 
 type SliderProps = {
@@ -25,12 +26,13 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(({
 {
   const [ thumb_pos, setThumbPos ] = useState(defaultValue??min);
   const p = (findPercent(min, thumb_pos, max)*100) + '%';
+  const shown = formatValue(thumb_pos, step ?? 1, labelParse);
   const core = (<div className={ify("layers items-center w-full",(labelPos==undefined)||labelPos!='i'||className)}>
     <div className="layer slider-backtrack w-full"></div>
     <div style={{width: p}} className={ify("layer slider-track pointer-events-none",trackClass)}></div>
     <div style={{marginLeft: p, transform: `translateX(-${p})`}} 
       className={ify("layer slider-thumb flex box pointer-events-none",thumbClass)}>
-        {labelPos=='i'? <span className={ify("flex box slider-label-in",labelClass)}>{labelParse?labelParse(thumb_pos):thumb_pos}</span> :''}
+        {labelPos=='i'? <span className={ify("flex box slider-label-in",labelClass)}>{shown}</span> :''}
     </div>
     <input name={name} id={`${formId}-${label}`} type="range" ref={ref} max={max} min={min} step={step}
       className={ify("layer w-full appearance-none cursor-pointer opacity-0",backtrackClass)} 
@@ -39,7 +41,7 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(({
     />
   </div>);
   return labelPos && labelPos != 'i'? (<div className={ify("flex",labelPos=='r'&&"flex-row-reverse",className)}>
-    <span className={ify("p-2",labelClass)}>{labelParse?labelParse(thumb_pos):thumb_pos}</span>
+    <span style={{width: labelWidth(min, max, step ?? 1, labelParse)}} className={ify("slider-label-out",labelPos=='r'?"text-right":"text-left",labelClass)}>{shown}</span>
     { core }
   </div>) : core;
 })

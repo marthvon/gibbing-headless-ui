@@ -1,3 +1,15 @@
+<script lang="ts" module>
+  export type DateInput = {
+    formId: string | undefined;
+    label: string | undefined;
+    value: string;
+    maxLength: number;
+    guard: RegExp;
+    oninput: (event: Event & { currentTarget: HTMLInputElement | HTMLTextAreaElement }) => void;
+    onblur: (event: FocusEvent) => void;
+  };
+</script>
+
 <script lang="ts">
   import type { Snippet } from "svelte";
   import type { DayCtx, HeadingCtx, WeekdayCtx } from "./_internal/date_picker";
@@ -5,12 +17,13 @@
   import Dropdown from "./Dropdown.svelte";
   import TextboxA from "./TextboxA.svelte";
   import { DropdownPreset, Interact } from "./presets.client";
-  import { ify } from "./utils";
+  import { ify, zLayer } from "./utils";
 
   export let value: string | undefined = undefined;
   export let formId: string | undefined = undefined;
   export let label: string | undefined = undefined;
   export let locale: string | undefined = undefined;
+  export let zIndex: number | undefined = undefined;
   export let className: string | undefined = undefined;
   export let headingClass: string | undefined = undefined;
   export let gridClass: string | undefined = undefined;
@@ -31,18 +44,22 @@
   export let day: Snippet<[DayCtx]> | undefined = undefined;
   export let dayMini: Snippet<[DayCtx]> | undefined = undefined;
   export let children: Snippet | undefined = undefined;
-  export let trigger: Snippet | undefined = undefined;
+  export let field: Snippet<[DateInput]> | undefined = undefined;
   export let ref: HTMLInputElement | undefined = undefined;
 
+  const ISO_TYPING = /^\d{0,4}(-(\d{0,2}(-(\d{0,2})?)?)?)?$/;
+
   let wrapEl: HTMLDivElement | undefined;
-  let textboxEl: HTMLInputElement | HTMLTextAreaElement;
   let selected = value ?? "";
+  let text = selected;
 
   $: if (value !== undefined) selected = value;
-  $: if (textboxEl) textboxEl.value = selected;
+  $: text = selected;
 
   function openMenu(event: Event) {
-    if (!textboxEl || event.target !== textboxEl) return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (target.classList.contains("ghost-node") || target.closest(".dropdown-wrapper")) return;
     const box = wrapEl?.querySelector<HTMLInputElement>("input.ghost-node");
     if (box) box.checked = true;
   }
@@ -54,30 +71,37 @@
 
   function commit(iso: string) {
     selected = iso;
+    text = iso;
     oninput?.(iso);
     onchange?.(iso);
     closeMenu();
   }
+
+  function leave() {
+    if (text === "") return commit("");
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+    const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : undefined;
+    if (m && date && date.getFullYear() === Number(m[1]) && date.getMonth() === Number(m[2]) - 1 && date.getDate() === Number(m[3])) commit(text);
+    else text = selected;
+  }
+
+  $: input = {
+    formId,
+    label,
+    value: text,
+    maxLength: 10,
+    guard: ISO_TYPING,
+    oninput: (event) => (text = event.currentTarget.value),
+    onblur: leave
+  } satisfies DateInput;
 </script>
 
+{#snippet defaultField(props: DateInput)}<TextboxA {...props} />{/snippet}
+
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div bind:this={wrapEl} onfocusin={openMenu} onclick={openMenu}>
+<div bind:this={wrapEl} style={zLayer(zIndex)} onfocusin={openMenu} onclick={openMenu}>
   <Dropdown {preset} {interact} {clickOut} {label} {className} {modalClass} {innerModalClass}>
-    {#if trigger}
-      {@render trigger()}
-    {:else}
-      <TextboxA bind:ref={textboxEl} {label} maxLength={10} value={selected} guard={/^\d{0,4}(-(\d{0,2}(-(\d{0,2})?)?)?)?$/}
-        on:blur={() => {
-          const typed = textboxEl?.value ?? "";
-          if (typed === "") commit("");
-          else {
-            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typed);
-            const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : undefined;
-            if (date && date.getFullYear() === Number(m![1]) && date.getMonth() === Number(m![2]) - 1 && date.getDate() === Number(m![3])) commit(typed);
-            else if (textboxEl) textboxEl.value = selected;
-          }
-        }} />
-    {/if}
+    {@render (field ?? defaultField)(input)}
     {#snippet menu()}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div onmousedown={(e) => e.preventDefault()}>

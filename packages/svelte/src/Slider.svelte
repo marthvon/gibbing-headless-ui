@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { formatValue, labelWidth } from "./_internal/slider";
   import { ify, twId } from "./utils";
 
   function findPercent(min: number, curr: number, max: number) {
@@ -27,10 +28,11 @@
 
   const id = twId("slider", label, formId);
 
-  export let ref: HTMLInputElement;
+  export let ref: HTMLInputElement | undefined = undefined;
 
   let thumb_pos = defaultValue ?? min;
   $: p = (findPercent(min, thumb_pos, max) * 100) + "%";
+  $: shown = formatValue(thumb_pos, step ?? 1, labelParse);
 </script>
 
 {#snippet core()}
@@ -39,7 +41,7 @@
     <div style:width={p} class={ify("layer slider-track pointer-events-none", trackClass)}></div>
     <div style:margin-left={p} style:transform={"translateX(-" + p + ")"}
       class={ify("layer slider-thumb flex box pointer-events-none", thumbClass)}>
-      {#if labelPos == "i"}<span class={ify("flex box slider-label-in", labelClass)}>{labelParse ? labelParse(thumb_pos) : thumb_pos}</span>{/if}
+      {#if labelPos == "i"}<span class={ify("flex box slider-label-in", labelClass)}>{shown}</span>{/if}
     </div>
     <input {id} type="range" bind:this={ref} bind:value={thumb_pos} {max} {min} {step}
       class={ify("layer w-full appearance-none cursor-pointer opacity-0", backtrackClass)} on:change={(e) => dispatch("change", e)}
@@ -49,7 +51,7 @@
 
 {#if labelPos && labelPos != "i"}
   <div class={ify("flex", labelPos == "r" && "flex-row-reverse", className)}>
-    <span class={ify("p-2", labelClass)}>{labelParse ? labelParse(thumb_pos) : thumb_pos}</span>
+    <span style:width={labelWidth(min, max, step ?? 1, labelParse)} class={ify("slider-label-out", labelPos == "r" ? "text-right" : "text-left", labelClass)}>{shown}</span>
     {@render core()}
   </div>
 {:else}

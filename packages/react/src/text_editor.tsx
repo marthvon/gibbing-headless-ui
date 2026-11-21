@@ -9,7 +9,7 @@ import {
 } from "./_internal/text_format";
 import type { VariableClass } from "./_internal/text_highlight";
 import { LiveEditor } from "./_internal/text_view";
-import { ify } from "./utils";
+import { ify, zLayer } from "./utils";
 
 export type { FormatAction, TextSnippet, Tool } from "./_internal/text_format";
 export type { VariableClass } from "./_internal/text_highlight";
@@ -30,10 +30,9 @@ export type TextEditorProps = {
   toolbarLabel?: string;
   variableClass?: VariableClass;
   extensions?: Extension[];
-  status?: (text: string, maxLength: number | undefined) => string;
   formId?: string;
+  zIndex?: number;
   className?: string;
-  labelClass?: string;
   boxClass?: string;
   toolbarClass?: string;
   toolClass?: string;
@@ -42,9 +41,11 @@ export type TextEditorProps = {
   menuClass?: string;
   itemClass?: string;
   sourceClass?: string;
-  errorClass?: string;
-  statusClass?: string;
+  caption?: (text: string, labelId: string, forId: string, labelled: boolean) => ReactNode;
   glyph?: (action: FormatAction) => ReactNode;
+  insert?: (label: string) => ReactNode;
+  message?: (error: string, id: string) => ReactNode;
+  status?: (text: string, maxLength: number | undefined, id: string) => ReactNode;
   item?: (snippet: TextSnippet) => ReactNode;
   onChange?: (value: string) => void;
   onBlur?: () => void;
@@ -95,9 +96,9 @@ function Glyph({ action }: { action: FormatAction }) {
 
 export default function TextEditor({
   label, value, rows = 12, maxLength, placeholder, readOnly = false, labelled = true, error, tools = TOOL_GROUPS,
-  snippets = [], insertLabel = "Insert", toolbarLabel = "Formatting", variableClass, extensions = [], status = editorStatus,
-  formId, className, labelClass, boxClass, toolbarClass, toolClass, dividerClass, insertClass, menuClass, itemClass,
-  sourceClass, errorClass, statusClass, glyph, item, onChange, onBlur
+  snippets = [], insertLabel = "Insert", toolbarLabel = "Formatting", variableClass, extensions = [],
+  formId, zIndex, className, boxClass, toolbarClass, toolClass, dividerClass, insertClass, menuClass, itemClass,
+  sourceClass, caption, glyph, insert, message, status, item, onChange, onBlur
 }: TextEditorProps) {
   const id = (formId ? `${formId}-` : "--tw-text-editor-") + useId();
   const menuId = `${id}-snippets`;
@@ -128,7 +129,7 @@ export default function TextEditor({
     if (editor) editor.apply(formatEdit(action, editor.text(), editor.selection()));
   }
 
-  function insert(snippet: TextSnippet) {
+  function place(snippet: TextSnippet) {
     setOpen(false);
     const editor = live.current;
     if (editor) editor.apply(insertEdit(editor.selection(), snippet.text, snippet.pick));
@@ -261,8 +262,10 @@ export default function TextEditor({
   }, [open]);
 
   return (
-    <div className={ify("field text-editor-field", className)}>
-      <label id={`${id}-label`} htmlFor={id} className={ify(labelled ? "field-label" : "field-label-hidden", labelClass)}>{label}</label>
+    <div className={ify("field text-editor-field", className)} style={zLayer(zIndex)}>
+      {caption
+        ? caption(label, `${id}-label`, id, labelled)
+        : <label id={`${id}-label`} htmlFor={id} className={labelled ? "field-label" : "field-label-hidden"}>{label}</label>}
       <div className={ify("text-editor", error && "field-invalid", readOnly && "text-editor-readonly", boxClass)}>
         {readOnly ? null : (
           <div ref={bar} role="toolbar" aria-label={toolbarLabel} aria-controls={id} tabIndex={-1} onKeyDown={rove} className={ify("text-editor-toolbar", toolbarClass)}>
@@ -309,10 +312,14 @@ export default function TextEditor({
                   }}
                   onFocus={() => setCurrent(flat.length)}
                 >
-                  <span className="text-editor-insert-label">{insertLabel}</span>
-                  <svg viewBox="0 0 24 24" className="text-editor-chevron" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  {insert ? insert(insertLabel) : (
+                    <>
+                      <span className="text-editor-insert-label">{insertLabel}</span>
+                      <svg viewBox="0 0 24 24" className="text-editor-chevron" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </>
+                  )}
                 </button>
                 <div ref={menu} id={menuId} role="menu" aria-label={insertLabel} tabIndex={-1} hidden={!open} onKeyDown={menuKey} className={ify("text-editor-menu", menuClass)}>
                   {snippets.map((snippet) => (
@@ -323,7 +330,7 @@ export default function TextEditor({
                       tabIndex={-1}
                       className={ify("text-editor-menu-item", itemClass)}
                       onMouseDown={keep}
-                      onClick={() => insert(snippet)}
+                      onClick={() => place(snippet)}
                     >
                       {item ? item(snippet) : (
                         <>
@@ -340,8 +347,10 @@ export default function TextEditor({
         )}
         <div ref={host} className={ify("text-editor-source", sourceClass)}></div>
       </div>
-      {error ? <p id={`${id}-error`} className={ify("field-error", errorClass)}>{error}</p> : null}
-      <p id={`${id}-status`} className={ify("text-editor-status", statusClass)}>{status(value ?? typed, maxLength)}</p>
+      {error ? (message ? message(error, `${id}-error`) : <p id={`${id}-error`} className="field-error">{error}</p>) : null}
+      {status
+        ? status(value ?? typed, maxLength, `${id}-status`)
+        : <p id={`${id}-status`} className="text-editor-status">{editorStatus(value ?? typed, maxLength)}</p>}
     </div>
   );
 }

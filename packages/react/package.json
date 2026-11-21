@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Headless UI for React, integrates with Next.js well",
   "type": "module",
   "repository": {
@@ -19,12 +19,17 @@
     "@codemirror/commands": "^6.0.0",
     "@codemirror/state": "^6.0.0",
     "@codemirror/view": "^6.0.0",
-    "@marthvon/frontail": ">=0.7.0",
+    "@marthvon/frontail": ">=0.8.0",
     "markdown-it": "^14.0.0 || ^15.0.0",
+    "qrcode-generator": "^2.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
   "exports": {
+    "./breadcrumbs": {
+      "import": "./dist/breadcrumbs.js",
+      "types": "./types/breadcrumbs.d.ts"
+    },
     "./card.a": {
       "import": "./dist/card.a.js",
       "types": "./types/card.a.d.ts"
@@ -53,6 +58,14 @@
       "import": "./dist/dual_slider.js",
       "types": "./types/dual_slider.d.ts"
     },
+    "./field_guide": {
+      "import": "./dist/field_guide.js",
+      "types": "./types/field_guide.d.ts"
+    },
+    "./file_viewer": {
+      "import": "./dist/file_viewer.js",
+      "types": "./types/file_viewer.d.ts"
+    },
     "./filter_row": {
       "import": "./dist/filter_row.js",
       "types": "./types/filter_row.d.ts"
@@ -77,6 +90,10 @@
       "import": "./dist/phone_field.js",
       "types": "./types/phone_field.d.ts"
     },
+    "./qr_code": {
+      "import": "./dist/qr_code.js",
+      "types": "./types/qr_code.d.ts"
+    },
     "./resource_table": {
       "import": "./dist/resource_table.js",
       "types": "./types/resource_table.d.ts"
@@ -97,17 +114,33 @@
       "import": "./dist/sort_heading.js",
       "types": "./types/sort_heading.d.ts"
     },
-    "./textbox.a": {
-      "import": "./dist/textbox.a.js",
-      "types": "./types/textbox.a.d.ts"
-    },
     "./text_editor": {
       "import": "./dist/text_editor.js",
       "types": "./types/text_editor.d.ts"
     },
+    "./textbox.a": {
+      "import": "./dist/textbox.a.js",
+      "types": "./types/textbox.a.d.ts"
+    },
+    "./textbox.b": {
+      "import": "./dist/textbox.b.js",
+      "types": "./types/textbox.b.d.ts"
+    },
+    "./textbox.c": {
+      "import": "./dist/textbox.c.js",
+      "types": "./types/textbox.c.d.ts"
+    },
     "./toggle": {
       "import": "./dist/toggle.js",
       "types": "./types/toggle.d.ts"
+    },
+    "./tooltip": {
+      "import": "./dist/tooltip.js",
+      "types": "./types/tooltip.d.ts"
+    },
+    "./upload_panel": {
+      "import": "./dist/upload_panel.js",
+      "types": "./types/upload_panel.d.ts"
     },
     "./utils": {
       "import": "./dist/utils.js",
@@ -131,17 +164,22 @@
     },
     "./presets.client": {
       "import": "./dist/presets.client.ts"
-    }
+    },
+    "./components.json": "./components.json",
+    "./AI_GUIDE.md": "./AI_GUIDE.md"
   },
   "scripts": {
-    "build": "npx tsc && cp src/presets.client.ts dist/ && rm -f dist/presets.client.js && echo 'export * from \"../dist/presets.client\";' > types/presets.client.d.ts && ../../min.sh dist && ../../nexify.sh dist"
+    "build": "npx tsc && cp src/presets.client.ts dist/ && rm -f dist/presets.client.js && echo 'export * from \"../dist/presets.client\";' > types/presets.client.d.ts && ../../min.sh dist && ../../nexify.sh dist",
+    "prepublishOnly": "node ../../scripts/ai-guide.mjs --check"
   },
   "publishConfig": {
     "access": "public"
   },
   "files": [
     "dist/",
-    "types/"
+    "types/",
+    "AI_GUIDE.md",
+    "components.json"
   ],
   "author": "marthvon",
   "license": "MIT",
@@ -152,7 +190,8 @@
     "@types/node": "^24.0.1",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
-    "markdown-it": "^15.0.3"
+    "markdown-it": "^15.0.3",
+    "qrcode-generator": "^2.0.4"
   },
   "peerDependenciesMeta": {
     "@codemirror/commands": {
@@ -165,6 +204,9 @@
       "optional": true
     },
     "markdown-it": {
+      "optional": true
+    },
+    "qrcode-generator": {
       "optional": true
     }
   }

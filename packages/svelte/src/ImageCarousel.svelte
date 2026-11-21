@@ -1,6 +1,11 @@
+<script lang="ts" context="module">
+  export type CarouselLoader = { type: "linear-loader"; fill_color: string; empty_color: string; onBottom?: boolean };
+</script>
+
 <script lang="ts">
   import { onDestroy, onMount, type Snippet } from "svelte";
   import { ify } from "./utils";
+  import { restartLoader } from "./_internal/loader";
 
   function getDegrees(index: number, curr_idx: number, length: number, inactive_opacity: number = 0.5) {
     if(length < 3)
@@ -24,83 +29,71 @@
   export let images: [string, Snippet][];
   export let timeout: number | undefined = undefined;
   export let className: string | undefined = undefined;
+  export let bg_img_opacity = 0.5;
   export let cursor_color: string | undefined = undefined;
   export let indicators: { indicated_color: string; dormant_color: string } | undefined = undefined;
-  export let loader: { type: "linear-loader"; fill_color: string; empty_color: string; duration: string; onBottom?: boolean } | undefined = undefined;
+  export let loader: CarouselLoader | undefined = undefined;
   export let children: Snippet | undefined = undefined;
 
   let carousel_index = 0;
-  let intervalHandler: ReturnType<typeof setInterval> | null = null;
+  let paused = false;
+  let timer: ReturnType<typeof setInterval> | null = null;
   let touchX: number | null = null;
-  let clockEl: HTMLDivElement | undefined;
+  let clockEl: HTMLSpanElement | undefined;
   let mounted = false;
 
-  $: if (mounted) restart(timeout, loader, clockEl);
+  $: if (mounted) schedule(timeout, paused, clockEl);
 
   onMount(() => (mounted = true));
   onDestroy(stop);
 
-  function signalIntervalHandler() {
-    if(intervalHandler == null) return;
-    clearInterval(intervalHandler);
-    intervalHandler = setInterval(carousel_next, timeout! * 1000);
-    if(clockEl && loader) {
-      clockEl.classList.remove(loader.type);
-      void clockEl.offsetHeight;
-      setTimeout(() => clockEl?.classList.add(loader.type), 10);
-    }
+  function stop() {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+  }
+
+  function advance() {
+    carousel_index = (carousel_index + 1) % images.length;
+    restartLoader(clockEl, true);
+  }
+
+  function schedule(seconds = timeout, halted = paused, clock = clockEl) {
+    stop();
+    const running = seconds !== undefined && !halted;
+    if (running) timer = setInterval(advance, seconds * 1000);
+    restartLoader(clock, running);
   }
 
   function carousel_next() {
     carousel_index = (carousel_index + 1) % images.length;
-    signalIntervalHandler();
+    schedule();
   }
 
   function carousel_prev() {
     carousel_index = (carousel_index ? carousel_index : images.length) - 1;
-    signalIntervalHandler();
-  }
-
-  function pauseCarousel() {
-    if(!loader) return;
-    if(intervalHandler) {
-      clearInterval(intervalHandler);
-      intervalHandler = null;
-      clockEl?.classList.remove(loader.type);
-    } else {
-      clockEl?.classList.add(loader.type);
-      intervalHandler = setInterval(carousel_next, timeout! * 1000);
-    }
+    schedule();
   }
 
   function set_carousel(index: number) {
     carousel_index = index;
-    signalIntervalHandler();
-  }
-
-  function stop() {
-    if(intervalHandler !== null) {
-      clearInterval(intervalHandler);
-      intervalHandler = null;
-    }
-  }
-
-  function restart(seconds: number | undefined, bar: typeof loader, clock: HTMLDivElement | undefined) {
-    stop();
-    if(seconds === undefined) return;
-    bar && clock?.classList.add(bar.type);
-    intervalHandler = setInterval(carousel_next, seconds * 1000);
+    schedule();
   }
 </script>
+
+{#snippet clock(place: string, bar: CarouselLoader)}
+  <button type="button" aria-label={paused ? "Resume carousel" : "Pause carousel"} aria-pressed={paused} onclick={() => (paused = !paused)} class={ify(place, "cursor-pointer z-[var(--z-raised,1)]")}>
+    <span bind:this={clockEl} class={ify(bar.type + "-base", bar.type, bar.empty_color)} style:--loader-duration={`${timeout ?? 5}s`}>
+      <span class={ify(bar.type + "-fill", bar.fill_color)}></span>
+    </span>
+  </button>
+{/snippet}
 
 <section class={ify("image_carousel with-navbar with-sides mx-auto", className)}>
   {#if children || (loader && loader["onBottom"] !== true)}
     <div class="flex top-nav pb-3"><div class="flex mx-auto w-full max-w-[inherit]">
       {#if children}{@render children()}{/if}
       {#if loader && loader["onBottom"] !== true}
-        <button type="button" aria-label="Pause carousel" onclick={pauseCarousel} class="ml-auto mr-3 my-1 cursor-pointer z-10">
-          <div bind:this={clockEl} class={ify(loader.type + "-base", loader.fill_color, loader.empty_color, loader.duration)}></div>
-        </button>
+        {@render clock("ml-auto mr-3 my-1", loader)}
       {/if}
     </div></div>
   {/if}
@@ -119,7 +112,7 @@
     ontouchstart={(event) => { if(event.targetTouches.length !== 0) touchX = event.targetTouches[0].clientX; }}
   >
     {#each images as [id, image], index (id)}
-      <li class="carousel layer flex box w-full h-full" style={getDegrees(index, carousel_index, images.length)}>{@render image()}</li>
+      <li class="carousel layer flex box w-full h-full" style={getDegrees(index, carousel_index, images.length, bg_img_opacity)}>{@render image()}</li>
     {/each}
   </ul>
   {#if cursor_color}
@@ -139,9 +132,7 @@
         </div>
       {/if}
       {#if loader && loader["onBottom"] === true}
-        <button type="button" aria-label="Pause carousel" onclick={pauseCarousel} class="layer ml-auto mr-3 my-1 z-10">
-          <div bind:this={clockEl} class={ify(loader.type + "-base", loader.fill_color, loader.empty_color, loader.duration)}></div>
-        </button>
+        {@render clock("layer ml-auto mr-3 my-1", loader)}
       {/if}
     </div>
   {/if}

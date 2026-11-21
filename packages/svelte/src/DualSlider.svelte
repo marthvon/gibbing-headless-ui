@@ -1,19 +1,20 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
-  import { cacheRect, disable, ify, twId } from "./utils";
+  import { createEventDispatcher } from "svelte";
+  import { formatValue, labelWidth, snapValue } from "./_internal/slider";
+  import { disable, ify, twId } from "./utils";
 
   function findPercent(min: number, curr: number, max: number) {
     return (curr - min) / (max - min);
   }
-  function findValue(x: number, rect: DOMRect, range: number) {
-    return ((x - rect.left) / rect.width) * range;
+  function findFraction(x: number, rect: DOMRect) {
+    return (x - rect.left) / rect.width;
   }
 
   export let formId: string | undefined = undefined;
   export let label: string | undefined = undefined;
   export let max: number;
   export let min: number = 0;
-  export let step: number | undefined = undefined;
+  export let step: number = 1;
   export let className: string | undefined = undefined;
   export let trackClass: string | undefined = undefined;
   export let thumbClass: string | undefined = undefined;
@@ -25,7 +26,7 @@
   const dispatch = createEventDispatcher<{ input: Event; change: string | undefined }>();
   const id = twId("dual-slider", label, formId);
 
-  let internalRefEl: HTMLInputElement;
+  let internalRefEl: HTMLInputElement | undefined = undefined;
   export { internalRefEl as ref };
 
   let sliderEl: HTMLButtonElement;
@@ -34,21 +35,19 @@
   let left_thumb_pos = min;
   let right_thumb_pos = max;
 
+  function measure() {
+    if(!sliderEl) return false;
+    sliderRect = sliderEl.getBoundingClientRect();
+    return true;
+  }
+
   function createThumbHandlers(self: number, setter: (value: number) => void) {
     function handleMouseMove(e: MouseEvent | Touch) {
       if(sliderRect == undefined) return;
-      let value = findValue(e.clientX, sliderRect, max - min);
+      const value = snapValue(findFraction(e.clientX, sliderRect), min, max, step);
       const valSplit = internalRefEl?.value ? internalRefEl.value.split(",") : [String(min), String(max)];
       const limit = Number(valSplit[(self + 1) % 2]);
-      if(step)
-        value = Math.round((value - min) / step) * step;
-      if(self) {
-        if(value <= limit) return;
-        else if(value > max) value = max;
-      } else {
-        if(value >= limit) return;
-        else if(value < min) value = min;
-      }
+      if(self ? value <= limit : value >= limit) return;
       valSplit[self] = String(value);
       internalRefEl && (internalRefEl.value = valSplit.join(","));
       setter(value);
@@ -63,7 +62,7 @@
     }
     function handleMouseDown(e: MouseEvent) {
       e.preventDefault();
-      if(sliderRect == undefined) return;
+      if(!measure()) return;
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       document.addEventListener("visibilitychange", handleMouseUp);
@@ -87,7 +86,7 @@
     }
     function handleTouchStart(e: TouchEvent) {
       e.preventDefault();
-      if(sliderRect == undefined) return;
+      if(!measure()) return;
       touchIds[self] = e.targetTouches[0].identifier;
       document.addEventListener("touchmove", handleTouchMove);
       document.addEventListener("touchend", handleTouchEnd);
@@ -102,11 +101,12 @@
 
   $: lp = findPercent(min, left_thumb_pos, max) * 100;
   $: rp = findPercent(min, right_thumb_pos, max) * 100;
+  $: width = labelWidth(min, max, step, labelParse);
 
   function inferTrackMouseDown(e: MouseEvent) {
     e.preventDefault();
-    if(!sliderRect) return;
-    if(findValue(e.clientX, sliderRect, max - min) < ((max - min) / 2))
+    if(!measure()) return;
+    if(findFraction(e.clientX, sliderRect!) < 0.5)
       (handleMinMouseDown(e) as undefined) || handleMinMouseMove(e);
     else
       (handleMaxMouseDown(e) as undefined) || handleMaxMouseMove(e);
@@ -114,14 +114,13 @@
 
   function inferTrackTouchEnd(e: TouchEvent) {
     e.preventDefault();
-    if(!sliderRect || e.targetTouches.length === 0) return;
-    if(findValue(e.targetTouches[0].clientX, sliderRect, max - min) < ((max - min) / 2))
+    if(e.targetTouches.length === 0 || !measure()) return;
+    if(findFraction(e.targetTouches[0].clientX, sliderRect!) < 0.5)
       (handleMinTouchStart(e) as undefined) || handleMinMouseMove(e.targetTouches[0]);
     else
       (handleMaxTouchStart(e) as undefined) || handleMaxMouseMove(e.targetTouches[0]);
   }
 
-  onMount(() => cacheRect(sliderEl, (rect) => sliderRect = rect));
 </script>
 
 {#snippet core()}
@@ -134,21 +133,21 @@
     <button type="button" role="slider" aria-label={label ? label + " minimum" : "Minimum value"} aria-valuemin={min} aria-valuemax={right_thumb_pos} aria-valuenow={left_thumb_pos}
       draggable={false} on:dragstart={disable} on:mousedown={handleMinMouseDown} on:touchstart={handleMinTouchStart} on:click={disable}
       style:margin-left={lp + "%"} style:transform={"translateX(-" + lp + "%)"} class={ify("layer slider-thumb flex box select-none drag-none", thumbClass)}>
-      {#if labelPos == "i"}<span class={ify("flex box slider-label-in", labelClass)}>{labelParse ? labelParse(left_thumb_pos) : left_thumb_pos}</span>{/if}
+      {#if labelPos == "i"}<span class={ify("flex box slider-label-in", labelClass)}>{formatValue(left_thumb_pos, step, labelParse)}</span>{/if}
     </button>
     <button type="button" role="slider" aria-label={label ? label + " maximum" : "Maximum value"} aria-valuemin={left_thumb_pos} aria-valuemax={max} aria-valuenow={right_thumb_pos}
       draggable={false} on:dragstart={disable} on:mousedown={handleMaxMouseDown} on:touchstart={handleMaxTouchStart} on:click={disable}
       style:margin-left={rp + "%"} style:transform={"translateX(-" + rp + "%)"} class={ify("layer slider-thumb flex box select-none drag-none", thumbClass)}>
-      {#if labelPos == "i"}<span class={ify("flex box slider-label-in", labelClass)}>{labelParse ? labelParse(right_thumb_pos) : right_thumb_pos}</span>{/if}
+      {#if labelPos == "i"}<span class={ify("flex box slider-label-in", labelClass)}>{formatValue(right_thumb_pos, step, labelParse)}</span>{/if}
     </button>
   </div>
 {/snippet}
 
 {#if labelPos && labelPos == "o"}
   <div class={ify("flex", className)}>
-    <span class={ify("p-2", labelClass)}>{labelParse ? labelParse(left_thumb_pos) : left_thumb_pos}</span>
+    <span style:width={width} class={ify("slider-label-out text-left", labelClass)}>{formatValue(left_thumb_pos, step, labelParse)}</span>
     {@render core()}
-    <span class={ify("p-2", labelClass)}>{labelParse ? labelParse(right_thumb_pos) : right_thumb_pos}</span>
+    <span style:width={width} class={ify("slider-label-out text-right", labelClass)}>{formatValue(right_thumb_pos, step, labelParse)}</span>
   </div>
 {:else}
   {@render core()}

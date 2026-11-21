@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { cacheRect, disable, ify } from "./utils";
+  import { disable, ify } from "./utils";
   import type { PanelPreset } from "./presets.client";
 
   function scanPanelResize(value: number, ratio: (number | ("<" | "<=") | "x")[]) {
@@ -68,24 +67,38 @@
   let prect: DOMRect | undefined;
   let touchRef: number | null = null;
 
-  function handleMouseMove(e: MouseEvent | Touch) { if(prect && containerEl && parentEl && draggableEl) {
-    const new_size = "max(" + (panelPercentSize(side, e, prect) * 100) + "%, "
-      + draggableEl[(side == "l" || side == "r") ? "offsetWidth" : "offsetHeight"] + "px)";
-    (side == "l" || side == "r") ? (containerEl.style.width = new_size)
-      : (containerEl.style.height = new_size);
-  }}
+  function resize(container: HTMLDivElement, size: string) {
+    container.style[(side == "l" || side == "r") ? "width" : "height"] = size;
+  }
+
+  function beginDrag(container: HTMLDivElement | undefined) {
+    if(!parentEl || !container) return false;
+    prect = parentEl.getBoundingClientRect();
+    container.style.transition = "none";
+    return true;
+  }
+
+  function endDrag(container: HTMLDivElement) {
+    container.style.transition = "";
+    applyPanelLockSize(container, draggableEl, side, ratio);
+  }
+
+  function handleMouseMove(e: MouseEvent | Touch) { if(prect && containerEl && draggableEl)
+    resize(containerEl, "max(" + (panelPercentSize(side, e, prect) * 100) + "%, "
+      + draggableEl[(side == "l" || side == "r") ? "offsetWidth" : "offsetHeight"] + "px)");
+  }
 
   function handleMouseUp() {
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
     document.removeEventListener("visibilitychange", handleMouseUp);
     window.removeEventListener("blur", handleMouseUp);
-    applyPanelLockSize(containerEl, draggableEl, side, ratio);
+    endDrag(containerEl);
   }
 
   function handleMouseDown(e: MouseEvent) {
     e.preventDefault();
-    if(prect == undefined) return;
+    if(!beginDrag(containerEl)) return;
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("visibilitychange", handleMouseUp);
@@ -106,12 +119,12 @@
     document.removeEventListener("visibilitychange", handleTouchEnd);
     window.removeEventListener("blur", handleTouchEnd);
     touchRef = null;
-    applyPanelLockSize(containerEl, draggableEl, side, ratio);
+    endDrag(containerEl);
   }
 
   const handleTouchStart = (e: TouchEvent & { currentTarget: HTMLButtonElement }) => {
     e.preventDefault();
-    if(prect == undefined) return;
+    if(!beginDrag(containerEl)) return;
     touchRef = e.targetTouches[0].identifier;
     document.addEventListener("touchmove", handleTouchMove);
     document.addEventListener("touchend", handleTouchEnd);
@@ -119,20 +132,12 @@
     window.addEventListener("blur", handleTouchEnd);
   };
 
-  onMount(() => cacheRect(parentEl, (rect) => prect = rect));
-
-  $: if(containerEl) {
-    containerEl.style.width = "";
-    containerEl.style.height = "";
+  function defaultSize(lockPoints: typeof ratio, initial: typeof default_ratio) {
+    const lock = typeof initial == "number" ? lockPoints[2 + (initial * 4)] : undefined;
+    return typeof initial == "string" ? initial : (typeof lock == "number" ? lock * 100 + "%" : "50%");
   }
 
-  $: if(containerEl && parentEl && draggableEl) {
-    const new_size = default_ratio ? (typeof default_ratio == "string" ?
-      default_ratio : (ratio[2 + (default_ratio * 4)] + "%")
-    ) : "50%";
-    (side == "l" || side == "r") ? (containerEl.style.width = new_size == "x" ? "50%" : new_size)
-      : (containerEl.style.height = new_size == "x" ? "50%" : new_size);
-  }
+  $: if(containerEl) resize(containerEl, defaultSize(ratio, default_ratio));
 </script>
 
 <div bind:this={parentEl} class={ify("layers w-full h-full", className)}>
@@ -141,7 +146,7 @@
     <article draggable={false} class={ify("flex flex-col shrink w-full h-full select-none drag-none", side == "b" ? "pt-4" : (side == "t" && "pb-4"))}><slot name="modal" /></article>
     <button type="button" aria-label="Resize panel" bind:this={draggableEl} draggable={false}
       on:dragstart={disable} on:mousedown={handleMouseDown} on:touchstart={handleTouchStart} on:click={(e) => e.preventDefault()}
-      class={ify("flex sticky gap-1 p-1 bg-slate-100 border-slate-400", styles[1], dragClass)}>
+      class={ify("flex sticky touch-none gap-1 p-1 bg-slate-100 border-slate-400", styles[1], dragClass)}>
       {#if side == "l" || side == "r"}
         <svg class={ify("my-auto h-1/4", side == "r" && "-scale-x-100")} height="100%" width="12" preserveAspectRatio="none" viewBox="0 0 16 80">
           <line x1="4" y1="25" x2="4" y2="55" stroke="#64748b" stroke-width="4" stroke-linecap="round" />

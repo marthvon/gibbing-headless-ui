@@ -16,9 +16,9 @@
   export let descLabel: string | undefined = undefined;
   export let className: string | undefined = undefined;
   export let labelClass: string | undefined = undefined;
-  export let textClass: string | undefined = undefined;
   export let arrowsClass: string | undefined = undefined;
   export let buttonClass: string | undefined = undefined;
+  export let caption: Snippet<[string]> | undefined = undefined;
   export let arrow: Snippet<[SortDirection]> | undefined = undefined;
   export let onsort: ((key: string, direction: SortDirection) => void) | undefined = undefined;
 
@@ -31,7 +31,7 @@
 
 <div class={ify("sort-heading", className)}>
   <div class={ify("sort-heading-label", labelClass)}>
-    <span class={ify("sort-heading-text", textClass)}>{label}</span>
+    {#if caption}{@render caption(label)}{:else}<span class="sort-heading-text">{label}</span>{/if}
     <span aria-hidden="true" class={ify("sort-arrows", arrowsClass)}>
       {#if position}
         <span class="sort-arrow" data-sort={position.direction}>{@render glyph(position.direction)}{sorts.length > 1 ? position.rank : ""}</span>

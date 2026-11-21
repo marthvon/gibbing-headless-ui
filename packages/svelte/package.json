@@ -1,6 +1,6 @@
 {
   "name": "@marthvon/gibbing-headless-ui-svelte",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Headless UI for Svelte 5+",
   "type": "module",
   "repository": {
@@ -19,11 +19,16 @@
     "@codemirror/commands": "^6.0.0",
     "@codemirror/state": "^6.0.0",
     "@codemirror/view": "^6.0.0",
-    "@marthvon/frontail": ">=0.7.0",
+    "@marthvon/frontail": ">=0.8.0",
     "markdown-it": "^14.0.0 || ^15.0.0",
+    "qrcode-generator": "^2.0.0",
     "svelte": "^5.0.0"
   },
   "exports": {
+    "./Breadcrumbs": {
+      "svelte": "./src/Breadcrumbs.svelte",
+      "default": "./src/Breadcrumbs.svelte"
+    },
     "./CardA": {
       "svelte": "./src/CardA.svelte",
       "default": "./src/CardA.svelte"
@@ -52,6 +57,14 @@
       "svelte": "./src/DualSlider.svelte",
       "default": "./src/DualSlider.svelte"
     },
+    "./FieldGuide": {
+      "svelte": "./src/FieldGuide.svelte",
+      "default": "./src/FieldGuide.svelte"
+    },
+    "./FileViewer": {
+      "svelte": "./src/FileViewer.svelte",
+      "default": "./src/FileViewer.svelte"
+    },
     "./FilterRow": {
       "svelte": "./src/FilterRow.svelte",
       "default": "./src/FilterRow.svelte"
@@ -75,6 +88,10 @@
     "./PhoneField": {
       "svelte": "./src/PhoneField.svelte",
       "default": "./src/PhoneField.svelte"
+    },
+    "./QrCode": {
+      "svelte": "./src/QrCode.svelte",
+      "default": "./src/QrCode.svelte"
     },
     "./ResourceTable": {
       "svelte": "./src/ResourceTable.svelte",
@@ -100,6 +117,14 @@
       "svelte": "./src/TextboxA.svelte",
       "default": "./src/TextboxA.svelte"
     },
+    "./TextboxB": {
+      "svelte": "./src/TextboxB.svelte",
+      "default": "./src/TextboxB.svelte"
+    },
+    "./TextboxC": {
+      "svelte": "./src/TextboxC.svelte",
+      "default": "./src/TextboxC.svelte"
+    },
     "./TextEditor": {
       "svelte": "./src/TextEditor.svelte",
       "default": "./src/TextEditor.svelte"
@@ -107,6 +132,14 @@
     "./Toggle": {
       "svelte": "./src/Toggle.svelte",
       "default": "./src/Toggle.svelte"
+    },
+    "./Tooltip": {
+      "svelte": "./src/Tooltip.svelte",
+      "default": "./src/Tooltip.svelte"
+    },
+    "./UploadPanel": {
+      "svelte": "./src/UploadPanel.svelte",
+      "default": "./src/UploadPanel.svelte"
     },
     "./utils": {
       "import": "./src/utils.ts",
@@ -130,13 +163,17 @@
     },
     "./presets.client": {
       "import": "./src/presets.client.ts"
-    }
+    },
+    "./components.json": "./components.json",
+    "./AI_GUIDE.md": "./AI_GUIDE.md"
   },
   "publishConfig": {
     "access": "public"
   },
   "files": [
-    "src/"
+    "src/",
+    "AI_GUIDE.md",
+    "components.json"
   ],
   "author": "marthvon",
   "license": "MIT",
@@ -146,6 +183,7 @@
     "@codemirror/view": "^6.43.15",
     "@types/node": "^24.0.1",
     "markdown-it": "^15.0.3",
+    "qrcode-generator": "^2.0.4",
     "svelte": "^5.0.0"
   },
   "peerDependenciesMeta": {
@@ -160,6 +198,12 @@
     },
     "markdown-it": {
       "optional": true
+    },
+    "qrcode-generator": {
+      "optional": true
     }
+  },
+  "scripts": {
+    "prepublishOnly": "node ../../scripts/ai-guide.mjs --check"
   }
 }

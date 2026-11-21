@@ -28,11 +28,11 @@ const Digitbox = forwardRef<HTMLInputElement, DigitboxProps>(({
     digitboxes.current.length = digits;
   else if(digits > digitboxes.current.length)
     digitboxes.current.push(...Array.from({ length: digits-digitboxes.current.length }, () => createRef<HTMLInputElement>()));
-  return (<div className={ify("flex gap-2 h-12",className)}> <input ref={internalRef} type="hidden" /> { digitboxes.current.map((subref, i, boxes) => (<>
-    <input key={i} name={name} id={`${formId}-${label}`} ref={subref} type={isNumeric?"number":"text"} maxLength={1} className={ify("code-box",digitClass)} 
+  return (<div className={ify("flex gap-2 h-12",className)}> <input ref={internalRef} name={name} type="hidden" /> { digitboxes.current.map((subref, i, boxes) => (
+    <input key={i} id={i === 0 ? `${formId}-${label}` : undefined} ref={subref} type={isNumeric?"number":"text"} maxLength={1} className={ify("code-box",digitClass)} 
       onFocus={()=>subref.current!.value = ''} disabled={disabled}
       onInput={(i+1) == boxes.length? (e)=>{boxes[i].current?.blur();updateDigits(e);onChange&&onChange(e)} : (e)=>{boxes[i+1].current?.focus();updateDigits(e)}} />
-  </>))} </div>);
+  ))} </div>);
 })
 Digitbox.displayName = 'Digitbox';
 export default Digitbox;

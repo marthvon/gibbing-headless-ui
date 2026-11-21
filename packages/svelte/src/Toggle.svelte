@@ -7,7 +7,7 @@
   export let className: string | undefined = undefined;
   export let trackClass: string | undefined = undefined;
   export let thumbClass: string | undefined = undefined;
-  export let ref: HTMLInputElement;
+  export let ref: HTMLInputElement | undefined = undefined;
 
   const dispatch = createEventDispatcher<{ change: Event & { currentTarget: HTMLInputElement } }>();
   const id = twId("toggle", label, formId);

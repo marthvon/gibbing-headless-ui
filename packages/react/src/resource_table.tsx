@@ -7,7 +7,7 @@ import {
   PAGE_SIZES, cardWidths, cellText, columnFloor, columnPixels, columnShares, columnWidth, pageSelection, stackName, tableStack,
   type ColumnKind, type Measure, type RowStatus, type StackWidth, type TableAction
 } from "./_internal/table_layout";
-import { ify } from "./utils";
+import { ify, zLayer } from "./utils";
 
 export type { ActionTone, RowStatus, StackWidth, TableAction } from "./_internal/table_layout";
 export type TableColumn = { key: string; label: string; date?: boolean };
@@ -48,17 +48,10 @@ export type ResourceTableProps<Row extends { id: string }> = {
   onSelectPage?: (on: boolean) => void;
   fill?: boolean;
   stackAt?: StackWidth;
-  empty?: string;
-  loadingLabel?: string;
-  sortByLabel?: string;
-  rowsLabel?: string;
-  previousLabel?: string;
-  nextLabel?: string;
   actionsLabel?: string;
   selectPageLabel?: string;
   selectRowLabel?: string;
-  range?: (from: number, to: number, total: number) => string;
-  pageLabel?: (page: number, pages: number) => string;
+  zIndex?: number;
   className?: string;
   scrollClass?: string;
   tableClass?: string;
@@ -66,8 +59,6 @@ export type ResourceTableProps<Row extends { id: string }> = {
   headRowClass?: string;
   headingClass?: string;
   checkboxClass?: string;
-  pillClass?: string;
-  noteClass?: string;
   actionsClass?: string;
   menuButtonClass?: string;
   menuClass?: string;
@@ -78,6 +69,14 @@ export type ResourceTableProps<Row extends { id: string }> = {
   pageButtonClass?: string;
   content?: (row: Row, key: string, text: string) => ReactNode;
   menuIcon?: ReactNode;
+  loading?: ReactNode;
+  empty?: ReactNode;
+  sortBy?: ReactNode;
+  range?: (from: number, to: number, total: number) => ReactNode;
+  pageText?: (page: number, pages: number) => ReactNode;
+  sizeCaption?: ReactNode;
+  previous?: ReactNode;
+  next?: ReactNode;
   sortHeading?: (key: string, label: string) => ReactNode;
 };
 
@@ -88,12 +87,11 @@ export default function ResourceTable<Row extends { id: string }>({
   statusLabel = "Status", faded, actions, menu = false, onOpen, sorts = [], sortable = NONE,
   page = 0, pages = 1, from = 0, to = 0, total = 0, pageSize = 10, pageSizes = PAGE_SIZES, onPage, onPageSize,
   cursor = false, hasNext = false, selectable = false, selected = NONE, onSelect, onSelectPage, fill = false, stackAt,
-  empty = "Nothing here yet.", loadingLabel = "Loading…", sortByLabel = "Sort by", rowsLabel = "Rows",
-  previousLabel = "Previous", nextLabel = "Next", actionsLabel = "Actions", selectPageLabel = "Select every row on this page",
-  selectRowLabel = "Select this row", range = (start, end, count) => `${start + 1}–${end} of ${count}`,
-  pageLabel = (current, count) => `Page ${current + 1} of ${count}`, className, scrollClass, tableClass, headClass,
-  headRowClass, headingClass, checkboxClass, pillClass, noteClass, actionsClass, menuButtonClass, menuClass, actionClass,
-  footerClass, pagerClass, sizeClass, pageButtonClass, content, menuIcon, sortHeading
+  actionsLabel = "Actions", selectPageLabel = "Select every row on this page",
+  selectRowLabel = "Select this row", zIndex, className, scrollClass, tableClass, headClass,
+  headRowClass, headingClass, checkboxClass, actionsClass, menuButtonClass, menuClass, actionClass,
+  footerClass, pagerClass, sizeClass, pageButtonClass, content, menuIcon, sortHeading,
+  loading, empty, sortBy, range, pageText, sizeCaption, previous, next
 }: ResourceTableProps<Row>) {
   const scroller = useRef<HTMLDivElement>(null);
   const table = useRef<HTMLTableElement>(null);
@@ -223,7 +221,7 @@ export default function ResourceTable<Row extends { id: string }>({
   return (
     <div
       className={ify("resource-table", fill && "resource-table-fill", rows.length > 2 && "resource-table-many", className)}
-      style={{ containerName: stackName(stack) }}
+      style={zLayer(zIndex, { containerName: stackName(stack) })}
     >
       <div ref={scroller} className={ify("resource-table-scroll", fill && "resource-table-scroll-bound", scrollClass)}>
         <table ref={table} className={ify("resource-table-grid", tableClass)}>
@@ -253,7 +251,7 @@ export default function ResourceTable<Row extends { id: string }>({
                   />
                 </th>
               ) : null}
-              {sortsAny ? <th aria-hidden="true" className="resource-table-sort-by">{sortByLabel}</th> : null}
+              {sortsAny ? <th aria-hidden="true" className="resource-table-sort-by">{sortBy ?? "Sort by"}</th> : null}
               {columns.map((column) => heading(column.key, column.label))}
               {statusColumn ? heading(statusKey, statusLabel) : null}
               {actionColumn ? <th className="resource-table-action-heading"></th> : null}
@@ -261,9 +259,9 @@ export default function ResourceTable<Row extends { id: string }>({
           </thead>
           <tbody className="resource-table-body">
             {busy ? (
-              <tr className="resource-table-message"><td colSpan={span}>{loadingLabel}</td></tr>
+              <tr className="resource-table-message"><td colSpan={span}>{loading ?? "Loading…"}</td></tr>
             ) : rows.length === 0 ? (
-              <tr className="resource-table-message"><td colSpan={span}>{empty}</td></tr>
+              <tr className="resource-table-message"><td colSpan={span}>{empty ?? "Nothing here yet."}</td></tr>
             ) : (
               rows.map((row) => {
                 const dimmed = !!faded?.(row);
@@ -331,13 +329,13 @@ export default function ResourceTable<Row extends { id: string }>({
                           ) : null}
                           {lead ? null : <span className="resource-table-card-label">{column.label}</span>}
                           {content ? content(row, column.key, value) : tone ? (
-                            <span className={ify("resource-table-pill", pillClass, tone)}>{value}</span>
+                            <span className={ify("resource-table-pill", tone)}>{value}</span>
                           ) : (
                             <>
                               <span className="resource-table-value">
                                 <span className={ify("resource-table-line", column.date && "resource-table-date")}>{value}</span>
                               </span>
-                              {note ? <span className={ify("resource-table-note", noteClass)}>{note}</span> : null}
+                              {note ? <span className="resource-table-note">{note}</span> : null}
                             </>
                           )}
                         </td>
@@ -346,7 +344,7 @@ export default function ResourceTable<Row extends { id: string }>({
                     {standing ? (
                       <td className={ify("resource-table-cell resource-table-rest", dimmed && "resource-table-dimmed")} style={cardStyle(statusKey)}>
                         <span className="resource-table-card-label">{statusLabel}</span>
-                        <span className={ify("resource-table-pill", pillClass, standing.tone)}>{standing.label}</span>
+                        <span className={ify("resource-table-pill", standing.tone)}>{standing.label}</span>
                         {standing.tag ? <span className="resource-table-tag">{standing.tag}</span> : null}
                       </td>
                     ) : null}
@@ -421,10 +419,10 @@ export default function ResourceTable<Row extends { id: string }>({
       </div>
       {(cursor ? rows.length > 0 || page > 0 : total > 0) ? (
         <div className={ify("resource-table-footer", footerClass)}>
-          {cursor ? null : <p>{range(from, to, total)}</p>}
+          {cursor ? null : range ? range(from, to, total) : <p>{from + 1}–{to} of {total}</p>}
           <div className={ify("resource-table-pager", cursor && "resource-table-pager-end", pagerClass)}>
             <label className="resource-table-size">
-              {rowsLabel}
+              {sizeCaption ?? "Rows"}
               <select className={ify("resource-table-size-select", sizeClass)} value={pageSize} onChange={(event) => onPageSize?.(Number(event.currentTarget.value))}>
                 {pageSizes.map((size) => (
                   <option key={size} value={size}>{size}</option>
@@ -432,16 +430,16 @@ export default function ResourceTable<Row extends { id: string }>({
               </select>
             </label>
             <button type="button" className={ify("resource-table-page-button", pageButtonClass)} disabled={page <= 0} onClick={() => onPage?.(page - 1)}>
-              {previousLabel}
+              {previous ?? "Previous"}
             </button>
-            {cursor ? null : <span>{pageLabel(page, pages)}</span>}
+            {cursor ? null : pageText ? pageText(page, pages) : <span>Page {page + 1} of {pages}</span>}
             <button
               type="button"
               className={ify("resource-table-page-button", pageButtonClass)}
               disabled={cursor ? !hasNext : page + 1 >= pages}
               onClick={() => onPage?.(page + 1)}
             >
-              {nextLabel}
+              {next ?? "Next"}
             </button>
           </div>
         </div>

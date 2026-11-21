@@ -8,7 +8,7 @@ export type { Sort, SortDirection, SortMode } from "./_internal/sorts";
 
 export default function SortHeading({
   sortKey, label, sorts, ascTitle = "Ascending", descTitle = "Descending", ascLabel, descLabel,
-  className, labelClass, textClass, arrowsClass, buttonClass, arrow, onSort
+  className, labelClass, arrowsClass, buttonClass, caption, arrow, onSort
 }: {
   sortKey: string;
   label: string;
@@ -19,9 +19,9 @@ export default function SortHeading({
   descLabel?: string;
   className?: string;
   labelClass?: string;
-  textClass?: string;
   arrowsClass?: string;
   buttonClass?: string;
+  caption?: (label: string) => ReactNode;
   arrow?: (direction: SortDirection) => ReactNode;
   onSort?: (key: string, direction: SortDirection) => void;
 }) {
@@ -30,7 +30,7 @@ export default function SortHeading({
   return (
     <div className={ify("sort-heading", className)}>
       <div className={ify("sort-heading-label", labelClass)}>
-        <span className={ify("sort-heading-text", textClass)}>{label}</span>
+        {caption ? caption(label) : <span className="sort-heading-text">{label}</span>}
         <span aria-hidden="true" className={ify("sort-arrows", arrowsClass)}>
           {position ? (
             <span className="sort-arrow" data-sort={position.direction}>

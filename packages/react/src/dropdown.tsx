@@ -2,20 +2,20 @@
 
 import type { ReactNode } from "react";
 import { useId } from "react";
-import { ify } from "./utils";
+import { ify, zLayer } from "./utils";
 import { type DropdownPreset, Interact } from "./presets.client";
 
 export default function Dropdown({
-  className, modalClass, innerModalClass, wrapperClass,
+  className, modalClass, innerModalClass, wrapperClass, zIndex,
   preset, interact, clickOut, menu, children
 } : {
-  className?: string, modalClass?: string, innerModalClass?: string, wrapperClass?: string,
+  className?: string, modalClass?: string, innerModalClass?: string, wrapperClass?: string, zIndex?: number,
   preset: DropdownPreset, interact: Interact, clickOut?: boolean
   menu: ReactNode[], children: ReactNode
 }) {
   const id = "--tw-dropdown-modal-"+useId();
   const styles = preset.split(' ');
-  return (<div className={ify("flex group",styles[0],className)}>
+  return (<div className={ify("flex group",styles[0],className)} style={zLayer(zIndex)}>
     <input type="checkbox" id={id} className="peer ghost-node" />
     <label htmlFor={id} className="group layer cursor-pointer w-full">{ children }</label>
     { (interact & Interact.CLICK) && clickOut? 

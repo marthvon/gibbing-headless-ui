@@ -4,6 +4,7 @@
 
   export let formId: string | undefined = undefined;
   export let label: string | undefined = undefined;
+  export let name: string | undefined = undefined;
   export let digits: number;
   export let isNumeric: boolean = true;
   export let disabled: boolean = false;
@@ -13,7 +14,7 @@
   const dispatch = createEventDispatcher<{ input: Event & { currentTarget: HTMLInputElement }; change: Event & { currentTarget: HTMLInputElement } }>();
   const id = twId("digitbox", label, formId);
 
-  let internalRef: HTMLInputElement;
+  let internalRef: HTMLInputElement | undefined = undefined;
   export { internalRef as ref };
 
   let digitEls: HTMLInputElement[] = [];
@@ -27,7 +28,7 @@
 </script>
 
 <div class={ify("flex gap-2 h-12", className)}>
-  <input bind:this={internalRef} {id} type="hidden" />
+  <input bind:this={internalRef} {id} {name} type="hidden" />
   {#each Array.from({ length: digits }, (_, i) => i) as i (i)}
     <input bind:this={digitEls[i]} type={isNumeric ? "number" : "text"} maxlength={1} class={ify("code-box", digitClass)}
       on:focus={() => digitEls[i] && (digitEls[i].value = "")} {disabled}

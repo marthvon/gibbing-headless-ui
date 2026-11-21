@@ -1,9 +1,21 @@
+import type { Snippet } from "svelte";
+
+export type Content<Args extends unknown[] = []> = string | Snippet<Args>;
+
+export const Z = { raised: 1, sticky: 2, backdrop: 40, popover: 50, modal: 60, toast: 70 } as const;
+
+export function zLayer(zIndex?: number, style?: string): string | undefined {
+  if (zIndex === undefined) return style;
+  return `${style ? `${style};` : ""}--z-popover:${zIndex};--z-backdrop:${zIndex}`;
+}
+
 export function ify(...classes: (string|boolean|undefined|null|number)[]) : string|undefined {
   return (classes.reduce((ret, val) => val && typeof val == "string"? (ret+' '+val) : ret, "") as string)||undefined;
 }
+let instances = 0;
 export function twId(component: string, label?: string, formId?: string): string {
-  const slug = label ? label.toLowerCase().replaceAll(" ", "_") : (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
-  return formId ? `${formId}-${slug}` : `--tw-${component}-${slug}`;
+  const slug = label ? `-${label.toLowerCase().replaceAll(" ", "_")}` : "";
+  return `${formId ? `${formId}-` : "--tw-"}${component}${slug}-${++instances}`;
 }
 export function classify(obj: Record<string, unknown>): string|undefined {
   let ret = "";

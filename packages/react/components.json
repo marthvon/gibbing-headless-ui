@@ -1,0 +1,3150 @@
+{
+  "package": "@marthvon/gibbing-headless-ui",
+  "framework": "react",
+  "conventions": [
+    "**Styles come from frontail.** Import `@marthvon/frontail/components/index.css` once, or import only the stylesheets each component lists under **Stylesheet**, including the ones it depends on. Without them the components render unstyled.",
+    "**Import frontail's utilities too.** Many components rely on its utility stylesheets (`utilities/layouts.css`, `modal.css`, `3d.css`, `animate.css`, `layers.css`, plus `theme/keyframes.css`). Import them all once next to the component stylesheets.",
+    "**Class props are for containers only.** `className` styles the root and `xxxClass` props style named inner boxes. Text pieces are never styled by a class prop; replace them with a render prop / snippet instead.",
+    "**`Content` props take a string or a render function.** Props typed `Content` (or `Content<[args]>`) accept a plain string, which keeps the default element and only changes its text, or a function / snippet, which replaces the element entirely and receives the listed arguments.",
+    "**State is controlled by you.** Components report changes through callbacks and render what you pass back. Select, FilterRow, SortHeading and ResourceTable keep no copy of `value`, `values`, `query`, `sorts`, `page` or `selected`; update your state in the callback or nothing changes.",
+    "**Ids.** `formId` prefixes generated ids so labels and error messages stay linked; every instance still gets a unique id, so repeating the same `label` is safe.",
+    "**Presets are const enums.** `DropdownPreset`, `PanelPreset`, `CardPreset` and `Interact` come from the `presets.client` module. Each preset is a set of class names, so pass the enum member, never a string you typed yourself.",
+    "**Layering.** Popovers use `--z-popover` (50), their click-out backdrops `--z-backdrop` (40) and sticky headers `--z-sticky` (2). The `Z` export from `utils` holds the same scale.",
+    "**`zIndex` for layers opened from other layers.** Dropdown, Select, DatePickerInput, PhoneField, Tooltip, ResourceTable and TextEditor take `zIndex`, which sets the popups and backdrop of that component (and of everything rendered inside it) to that value. When a component opens from inside a dialog or another popup, pass the opener's z-index plus one, e.g. `zIndex={Z.modal + 1}` inside a dialog at `Z.modal`, and keep counting up for each deeper level, so the newest layer is always on top. Never put a dropdown inside a parent with `transform`, `filter`, `opacity` below 1 or its own `z-index`, because that parent traps the popover underneath later content.",
+    "**Optional peers.** TextEditor needs `@codemirror/commands`, `@codemirror/state`, `@codemirror/view` and `markdown-it`; QrCode needs `qrcode-generator`. Install them only if you use those components.",
+    "Callbacks are camelCase (`onChange`, `onToggle`, `onSelect`). Render props are functions returning `ReactNode`, for example `option={(option) => <b>{option.label}</b>}`.",
+    "Where the Svelte package uses a named slot, React takes a prop of the same name: CardA and CardB `image`, Panel `modal`.",
+    "Components are client components (`\"use client\"`). In server-rendered or static pages import presets from `presets.server`; on client-only pages `presets.client` lets the compiler inline the class names.",
+    "Components that list **Ref** forward a ref to that element, so `ref` works like it does on the native element."
+  ],
+  "choosing": [
+    {
+      "need": "A text field",
+      "use": "TextboxB (outlined, label floats onto the border) for most forms; TextboxC (outlined, label always on the border, allows a placeholder); TextboxA (filled, label below the box). All three become a textarea when `height` is above 3.25 (rem). TextboxB and C reserve a line for the error so the form never jumps."
+    },
+    {
+      "need": "A password, phone number or code",
+      "use": "PasswordField (`variant` a/b/c picks the textbox; or set `secret` on any Textbox), PhoneField (country dial code + number, stores digits only; pass a Textbox as `field` to match your form), Digitbox (one box per character, for OTP codes)."
+    },
+    {
+      "need": "Long formatted text",
+      "use": "TextEditor: a markdown editor with a toolbar and insertable `{{variables}}`."
+    },
+    {
+      "need": "Pick from a list",
+      "use": "Select for a form value (single or `multiple`). Dropdown only for a free-form menu of your own markup (actions, account menu); it has no value."
+    },
+    {
+      "need": "A date",
+      "use": "DatePickerInput for a form field that opens a calendar; DatePicker for an always-visible calendar."
+    },
+    {
+      "need": "A number in a range",
+      "use": "Slider for one value, DualSlider for a min/max pair. Both snap to `step` and keep their labels a fixed width."
+    },
+    {
+      "need": "An on/off switch",
+      "use": "Toggle."
+    },
+    {
+      "need": "Help text under a field",
+      "use": "FieldGuide: clips long text to `limit` and shows See more / See less only when it overflows."
+    },
+    {
+      "need": "A list of records",
+      "use": "ResourceTable (sorting, paging, selection, row actions, stacks into cards on narrow screens). Put a FilterRow above it for search and filters, and render SortHeading in its `sortHeading` slot."
+    },
+    {
+      "need": "Uploading files",
+      "use": "UploadPanel: drop zone, queue with progress, retry. You supply the actual `upload(file, progress)` function."
+    },
+    {
+      "need": "Previewing a file",
+      "use": "FileViewer: images, video, PDF, HTML, plain text, or a fallback card."
+    },
+    {
+      "need": "Images and media",
+      "use": "ImageCarousel (3D carousel with autoplay), GridView (masonry of your own tiles), SmartGridView (masonry that places tiles by aspect ratio and supports infinite scroll)."
+    },
+    {
+      "need": "Interactive cards",
+      "use": "CardA flips to its back on hover/click; CardB slides a gradient panel over an image."
+    },
+    {
+      "need": "A resizable drawer",
+      "use": "Panel: a side or bottom sheet the user drags to resize, optionally snapping to set sizes."
+    },
+    {
+      "need": "A hint on hover or focus",
+      "use": "Tooltip: wraps a trigger and shows `content` (a string or snippet) beside it on hover and keyboard focus. Use Dropdown instead when the popup must open on click."
+    },
+    {
+      "need": "Navigation and misc",
+      "use": "Breadcrumbs for a page trail; QrCode to render a scannable code as SVG."
+    }
+  ],
+  "recipes": [
+    {
+      "title": "Searchable, sortable, paged table",
+      "code": "const [query, setQuery] = useState(\"\");\nconst [sorts, setSorts] = useState<Sort[]>([]);\nconst [page, setPage] = useState(0);\nconst rows = filterSortAndSlice(people, query, sorts, page, 10);\n\n<FilterRow id=\"people-search\" query={query} onInput={setQuery} clearable={!!query} onClear={() => setQuery(\"\")} placeholder=\"Search people\" />\n<ResourceTable\n  columns={[{ key: \"name\", label: \"Name\" }, { key: \"joined\", label: \"Joined\", date: true }]}\n  rows={rows}\n  sorts={sorts}\n  sortable={new Set([\"name\", \"joined\"])}\n  sortHeading={(key, label) => <SortHeading sortKey={key} label={label} sorts={sorts} onSort={(k, d) => setSorts((s) => headerSort(s, k, d))} />}\n  page={page} pages={pageCount} from={page * 10} to={page * 10 + rows.length} total={total} onPage={setPage}\n/>"
+    },
+    {
+      "title": "A filter control inside FilterRow",
+      "code": "<FilterRow id=\"people\" query={query} onInput={setQuery} sizes={[FILTER_SIZE]} applied={!!role}\n  controls={(slot) => <Select label=\"Role\" className=\"filter-slot\" style={slot(0)} options={roles} value={role} clearable onChange={setRole} />} />"
+    }
+  ],
+  "components": [
+    {
+      "name": "Breadcrumbs",
+      "summary": "A trail of links to the current page. The last crumb is the current page and is not a link.",
+      "css": "`breadcrumbs.css`",
+      "props": [
+        {
+          "name": "crumbs",
+          "type": "readonly Crumb[]",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "default": "\"Breadcrumb\""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "listClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "itemClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "separator",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "homeIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "crumb",
+          "type": "((crumb: Crumb, current: boolean) => ReactNode)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<Breadcrumbs separator=\"/\" crumbs={[{ label: \"Home\", href: \"/\", home: true }, { label: \"Clients\", href: \"/clients\" }, { label: \"Ada Lovelace\" }]} />",
+      "notes": [
+        "`crumbs` is `{ label, href?, home? }[]`; `home: true` shows `homeIcon` before that crumb.",
+        "`separator` and `homeIcon` accept text (\"/\", \"⌂\") or your own element."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/breadcrumbs"
+    },
+    {
+      "name": "CardA",
+      "summary": "A card that flips from an image to a back face on hover, click, or both.",
+      "css": "frontail utilities `3d.css`, `layouts.css` and `modal.css`",
+      "props": [
+        {
+          "name": "image",
+          "type": "ReactNode",
+          "required": true
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.HOVER"
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true
+        }
+      ],
+      "native": false,
+      "example": "<div className=\"h-40\">\n  <CardA interact={Interact.CLICK} className=\"h-full\" cardClass=\"rounded-xl\" image={<img src=\"/cover.jpg\" alt=\"\" className=\"h-full w-full rounded-xl object-cover\" />}>\n    <div className=\"flex h-full items-center justify-center rounded-xl bg-indigo-900 p-4 text-white\">Back of the card</div>\n  </CardA>\n</div>",
+      "notes": [
+        "Give the parent a fixed height; the card fills it.",
+        "`interact` takes `Interact.HOVER`, `Interact.CLICK` or `Interact.HOVER_N_CLICK`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/card.a"
+    },
+    {
+      "name": "CardB",
+      "summary": "An image card that slides a gradient panel with your content over it on hover.",
+      "css": "frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "image",
+          "type": "ReactNode",
+          "required": true
+        },
+        {
+          "name": "from_color",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.HOVER"
+        },
+        {
+          "name": "preset",
+          "type": "CardPreset",
+          "required": true
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<CardB from_color=\"from-indigo-900\" preset={CardPreset.TO_RIGHT} className=\"h-40 rounded-xl\" image={<img src=\"/cover.jpg\" alt=\"\" className=\"h-full w-full object-cover\" />}>\n  <p className=\"p-4 text-white\">Revealed on hover</p>\n</CardB>",
+      "notes": [
+        "`from_color` is the Tailwind gradient start, e.g. `from-indigo-900`.",
+        "`preset` is a `CardPreset` member: TO_RIGHT, TO_LEFT, TO_TOP, TO_BOTTOM, or the `_AT_HALF` versions that stop half way."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/card.b"
+    },
+    {
+      "name": "DatePicker",
+      "summary": "An always-visible month calendar. Values are ISO dates (`YYYY-MM-DD`).",
+      "css": "`datepicker.css`",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "headingClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "gridClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cellClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "weekdayClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "onInput",
+          "type": "((iso: string) => void)",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "((iso: string) => void)",
+          "required": false
+        },
+        {
+          "name": "prev",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "heading",
+          "type": "((ctx: HeadingCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "weekday",
+          "type": "((ctx: WeekdayCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "day",
+          "type": "((ctx: DayCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "dayMini",
+          "type": "((ctx: DayCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement",
+      "native": false,
+      "example": "<DatePicker label=\"Due date\" formId=\"task\" value={due} onChange={setDue} />",
+      "notes": [
+        "`locale` sets month and weekday names, e.g. `fr-FR`.",
+        "Below 240px wide it switches to compact day labels; `dayMini` customises those.",
+        "`day`, `weekday` and `heading` receive `DayCtx`, `WeekdayCtx` and `HeadingCtx` and replace those cells.",
+        "`onChange` fires when a day is picked."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/date_picker"
+    },
+    {
+      "name": "DatePickerInput",
+      "summary": "A text box that opens a DatePicker in a dropdown. Typing a valid `YYYY-MM-DD` also works; an impossible date reverts on blur.",
+      "css": "`datepicker.css`, `dropdown.css`, the stylesheet of the text box (`textbox.a.css` by default) and frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "headingClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "gridClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cellClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "weekdayClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pickerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "innerModalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.BOTTOM"
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.CLICK"
+        },
+        {
+          "name": "clickOut",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "onInput",
+          "type": "((iso: string) => void)",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "((iso: string) => void)",
+          "required": false
+        },
+        {
+          "name": "prev",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "heading",
+          "type": "((ctx: HeadingCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "weekday",
+          "type": "((ctx: WeekdayCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "day",
+          "type": "((ctx: DayCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "dayMini",
+          "type": "((ctx: DayCtx) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "field",
+          "type": "((input: DateInput) => ReactNode)",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement",
+      "native": false,
+      "example": "<DatePickerInput label=\"Start date\" formId=\"booking\" value={start} onChange={setStart} />\n<DatePickerInput label=\"Due date\" formId=\"task\" value={due} onChange={setDue} field={(input) => <TextboxB {...input} />} />",
+      "notes": [
+        "The text box is TextboxA by default. Pass `field` to use any Textbox instead: spread the props it receives (`formId`, `label`, `value`, `maxLength`, `guard` and the input/blur handlers) onto it, exactly like PhoneField's `field`.",
+        "`preset={DropdownPreset.TOP}` opens the calendar above the box.",
+        "Values are ISO dates; `onChange` fires when a day is picked or a valid date is typed."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/date_picker_input"
+    },
+    {
+      "name": "Digitbox",
+      "summary": "One box per character for verification codes. Focus moves to the next box as the user types.",
+      "css": "`digitbox.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "digits",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "isNumeric",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "digitClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "onInput",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement",
+      "native": false,
+      "example": "<form><Digitbox label=\"Code\" formId=\"verify\" name=\"code\" digits={6} onChange={() => submit()} /></form>",
+      "notes": [
+        "With `name`, the combined value is submitted once under that name through a hidden input.",
+        "`isNumeric={false}` allows letters.",
+        "Boxes shrink to fit a narrow container."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/digitbox"
+    },
+    {
+      "name": "Dropdown",
+      "summary": "A trigger that opens your own menu markup. It holds no value; use Select for form values.",
+      "css": "`dropdown.css` and frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "innerModalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "wrapperClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": true
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": true
+        },
+        {
+          "name": "clickOut",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "menu",
+          "type": "ReactNode[]",
+          "required": true
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true
+        }
+      ],
+      "native": false,
+      "example": "<Dropdown preset={DropdownPreset.BOTTOM} interact={Interact.CLICK} clickOut innerModalClass=\"border border-zinc-200 p-1\"\n  menu={[\"Profile\", \"Sign out\"].map((item) => <button key={item} className=\"block w-full px-3 py-1.5 text-left hover:bg-zinc-100\">{item}</button>)}>\n  <span className=\"field-box\">Account</span>\n</Dropdown>",
+      "notes": [
+        "`preset` picks the direction (DropdownPreset.BOTTOM, TOP, LEFT, RIGHT); `interact` picks hover, click or both.",
+        "`clickOut` adds a backdrop that closes the menu on an outside click (click mode only).",
+        "Style the menu box with `innerModalClass`.",
+        "`menu` is an array of nodes; `children` is the trigger."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/dropdown"
+    },
+    {
+      "name": "DualSlider",
+      "summary": "A range slider with a minimum and a maximum thumb.",
+      "css": "`slider.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "step",
+          "type": "number",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "onInput",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "trackClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "thumbClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "backtrackClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "labelPos",
+          "type": "\"i\" | \"o\"",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "labelParse",
+          "type": "((n: number) => string)",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement",
+      "native": false,
+      "example": "<DualSlider label=\"Price\" formId=\"filters\" min={0} max={500} step={10} labelPos=\"o\" labelParse={(n) => `$${n}`} />",
+      "notes": [
+        "Values snap to `min + n × step` (default step 1) and are rounded to the step's decimals.",
+        "`labelPos=\"o\"` shows the values outside the bar in fixed-width labels; `\"i\"` shows them inside the thumbs.",
+        "`labelParse` formats the shown value, e.g. `(n) => `$${n}``.",
+        "The current value is `\"min,max\"` on the hidden input (the ref).",
+        "`onChange` receives that string when a drag ends."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/dual_slider"
+    },
+    {
+      "name": "FieldGuide",
+      "summary": "Help text for a field. Text taller than `limit` is clipped with a fade and an animated See more / See less toggle; shorter text shows in full with no toggle.",
+      "css": "`field_guide.css`",
+      "props": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "required": false,
+          "default": "3"
+        },
+        {
+          "name": "body",
+          "type": "((text: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "expand",
+          "type": "Content<[id: string]>",
+          "required": false
+        },
+        {
+          "name": "collapse",
+          "type": "Content<[id: string]>",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<FieldGuide text=\"We send a confirmation link to this address. It expires after 24 hours.\" limit={2} expand=\"Read more\" />",
+      "notes": [
+        "`limit` is in rem (default 3, about three lines).",
+        "Overflow is measured by one shared ResizeObserver, so it is cheap to use many."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/field_guide"
+    },
+    {
+      "name": "FileViewer",
+      "summary": "Previews a file by type: image, video, PDF, HTML, text, or a fallback card for anything else.",
+      "css": "`file_viewer.css`",
+      "props": [
+        {
+          "name": "src",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "kind",
+          "type": "FileKind",
+          "required": false
+        },
+        {
+          "name": "poster",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fitWidth",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "autoPlay",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mediaClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "posterClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "frameClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "textClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fallback",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "failure",
+          "type": "Content<[error: FileError]>",
+          "required": false
+        },
+        {
+          "name": "soundOnly",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "prev",
+          "type": "Content<[run: () => void]>",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "Content<[run: () => void]>",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "onPrev",
+          "type": "(() => void)",
+          "required": false
+        },
+        {
+          "name": "onNext",
+          "type": "(() => void)",
+          "required": false
+        },
+        {
+          "name": "onError",
+          "type": "((error: FileError) => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<div className=\"h-80\"><FileViewer src={file.url} name={file.name} type={file.mime} fallback=\"No preview for this file type.\" /></div>",
+      "notes": [
+        "The kind is inferred from `type` (MIME) and `name`; pass `kind` to force it.",
+        "Pass `content` to show text you already have without fetching `src`.",
+        "`prev`/`next` with `onPrev`/`onNext` add arrows for browsing a list.",
+        "Give it a sized parent; it fills it."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/file_viewer"
+    },
+    {
+      "name": "FilterRow",
+      "summary": "A search box plus filter controls that share one row and wrap behind a \"More filters\" toggle when space runs out.",
+      "css": "`filter_row.css`, `field.css`, plus `select.css` for Selects in the row",
+      "props": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "default": "\"Search\""
+        },
+        {
+          "name": "toggleLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"More filters\""
+        },
+        {
+          "name": "sizes",
+          "type": "readonly FilterSize[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "searchSize",
+          "type": "FilterSize",
+          "required": false,
+          "default": "SEARCH_SIZE"
+        },
+        {
+          "name": "clearSize",
+          "type": "FilterSize",
+          "required": false,
+          "default": "CLEAR_SIZE"
+        },
+        {
+          "name": "applied",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "clearable",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "refreshing",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "flowClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "slotClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "searchClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((label: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "clear",
+          "type": "Content<[run: () => void]>",
+          "required": false
+        },
+        {
+          "name": "toggle",
+          "type": "Content<[id: string, applied: boolean]>",
+          "required": false
+        },
+        {
+          "name": "refresh",
+          "type": "Content<[run: () => void, refreshing: boolean]>",
+          "required": false
+        },
+        {
+          "name": "controls",
+          "type": "((slot: (index: number) => CSSProperties) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "onInput",
+          "type": "(text: string) => void",
+          "required": true
+        },
+        {
+          "name": "onClear",
+          "type": "(() => void)",
+          "required": false
+        },
+        {
+          "name": "onRefresh",
+          "type": "(() => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<FilterRow id=\"people\" query={query} onInput={setQuery} sizes={[FILTER_SIZE]} applied={!!role} clearable={!!query || !!role}\n  onClear={() => { setQuery(\"\"); setRole(\"\"); }}\n  controls={(slot) => <Select label=\"Role\" className=\"filter-slot\" style={slot(0)} options={roles} value={role} clearable onChange={setRole} />} />",
+      "notes": [
+        "`sizes` describes each control in `controls` (use the presets in the `filters` module); `controls(slot)` must give control `i` the class `filter-slot` and the style `slot(i)`. Without both the controls overlap the toggles.",
+        "The More filters toggle only appears when the controls wrap past one line; FilterRow knows the width at which that happens from `sizes`, so it costs no layout measurement. A custom `toggle` should keep the `filter-toggle` class to get this.",
+        "`applied` highlights the toggle; `clearable` + `onClear` shows a Clear button; `onRefresh` adds a refresh button and `refreshing` spins it.",
+        "`id` must be unique on the page."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/filter_row"
+    },
+    {
+      "name": "GridView",
+      "summary": "A masonry grid of your own tiles, kept in order across columns.",
+      "css": "`grid_view.css`",
+      "props": [
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "innerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "columns",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "childrens",
+          "type": "{ [x: string]: ReactNode; }",
+          "required": true
+        },
+        {
+          "name": "template",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "onScrollEnd",
+          "type": "(() => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<GridView className=\"h-96\" cardClass=\"rounded-lg\" childrens={Object.fromEntries(photos.map((photo) => [photo.id, <img src={photo.url} alt=\"\" className=\"rounded-lg\" />]))} />",
+      "notes": [
+        "Columns follow the container width (1 below 28rem, up to 7 when very wide); `columns` forces a count.",
+        "`childrens` is a record of key → node.",
+        "`onScrollEnd` fires when the user scrolls to the bottom, for infinite loading."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/grid_view"
+    },
+    {
+      "name": "ImageCarousel",
+      "summary": "A 3D carousel with arrows, optional autoplay, dot indicators and a progress loader.",
+      "css": "`image_carousel.css`, plus `linear_loader.css` for `loader`, and frontail utilities `3d.css`, `layouts.css` and `modal.css`",
+      "props": [
+        {
+          "name": "images",
+          "type": "[string, ReactNode][]",
+          "required": true
+        },
+        {
+          "name": "timeout",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "bg_img_opacity",
+          "type": "number",
+          "required": false,
+          "default": "0.5"
+        },
+        {
+          "name": "cursor_color",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "indicators",
+          "type": "{ indicated_color: string; dormant_color: string; }",
+          "required": false
+        },
+        {
+          "name": "loader",
+          "type": "CarouselLoader",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<div className=\"h-56\"><ImageCarousel timeout={4} className=\"h-full\" cursor_color=\"text-zinc-700\" indicators={{ indicated_color: \"bg-indigo-600\", dormant_color: \"bg-zinc-300\" }}\n  images={photos.map((photo) => [photo.id, <img src={photo.url} alt=\"\" className=\"h-full rounded-xl\" />])} /></div>",
+      "notes": [
+        "Slides need an intrinsic width (an image, or a box like `w-96 max-w-full`); `w-full` slides collapse.",
+        "Side slides are pushed about 250px outward, so give it a full-width row, not a narrow column.",
+        "`timeout` (seconds) enables autoplay; `cursor_color` enables the arrows and colours them.",
+        "`loader` paints a bar that fills over `timeout` seconds and restarts on every slide change; `fill_color` colours the bar and `empty_color` the track. Clicking it pauses or resumes autoplay."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/image_carousel"
+    },
+    {
+      "name": "Panel",
+      "summary": "A drawer over your content that the user drags to resize, from the top, bottom, left or right.",
+      "css": "`panel.css` and frontail utilities `layouts.css`",
+      "props": [
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": true
+        },
+        {
+          "name": "modal",
+          "type": "ReactNode",
+          "required": true
+        },
+        {
+          "name": "preset",
+          "type": "PanelPreset",
+          "required": true
+        },
+        {
+          "name": "dragClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ratio",
+          "type": "(number | \"<\" | \"<=\" | \"x\")[]",
+          "required": false,
+          "default": "[0,'<=','x','<=',1.0]"
+        },
+        {
+          "name": "default_ratio",
+          "type": "string | number",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<div className=\"relative h-96\">\n  <Panel preset={PanelPreset.BOTTOM} default_ratio=\"40%\" modalClass=\"bg-white\" modal={<p className=\"p-4\">Details</p>}>\n    <main className=\"h-full p-4\">Main content</main>\n  </Panel>\n</div>",
+      "notes": [
+        "Put it in a positioned parent with a fixed height; it fills it.",
+        "`default_ratio` is a CSS size (`\"40%\"`) or the index of a lock point in `ratio`.",
+        "`ratio` alternates bounds, comparators and lock points: `[0, \"<=\", 0.25, \"<\", 0.5, \"<=\", 0.75, \"<=\", 1]` snaps to 25% below half and 75% above it; `\"x\"` as a lock point means stay where dropped."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/panel"
+    },
+    {
+      "name": "PasswordField",
+      "summary": "A password field: a thin wrapper that renders TextboxA, B or C (`variant`) with `secret` on, password autocomplete and a 64-character limit.",
+      "css": "the chosen textbox's stylesheet (`textbox.a.css` or `textbox.b.css`) plus `textbox.reveal.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "guard",
+          "type": "RegExp",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((text: string, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "((error: string | undefined, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "onReveal",
+          "type": "((revealed: boolean) => void)",
+          "required": false
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "showIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "\"a\" | \"b\" | \"c\"",
+          "required": false,
+          "default": "\"a\""
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "((value: string) => void)",
+          "required": false
+        }
+      ],
+      "forwardsRef": "TextField",
+      "native": true,
+      "example": "<PasswordField variant=\"b\" label=\"Password\" formId=\"signup\" autoComplete=\"new-password\" value={password} error={issue} onChange={setPassword} />",
+      "notes": [
+        "Everything else is passed to the textbox, so its props (`error`, `formId`, `showIcon`, `hideIcon`, `revealed`, `boxClass`, …) work here too.",
+        "Use `autoComplete=\"new-password\"` (Svelte: `autocomplete`) on sign-up and change-password forms.",
+        "For a show/hide toggle on any other field, set `secret` on the textbox directly.",
+        "`onChange` receives the new value as a string."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/password_field"
+    },
+    {
+      "name": "PhoneField",
+      "summary": "A country dial-code picker with flags plus a number box. The value is digits only, dial code first (`61412345678`).",
+      "css": "`phone_field.css`, `field.css`, `select.css`, `dropdown.css`, plus the stylesheet of any Textbox passed as `field`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false,
+          "default": "16"
+        },
+        {
+          "name": "countries",
+          "type": "readonly DialCountry[]",
+          "required": false,
+          "default": "DIAL_COUNTRIES"
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.TOP"
+        },
+        {
+          "name": "codeLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "type": "((country: DialCountry) => string)",
+          "required": false,
+          "default": "dialLabel"
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rowClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dialClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "triggerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "optionClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "numberClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "inputClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((text: string, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "flag",
+          "type": "((country: DialCountry) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "((error: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "field",
+          "type": "((input: PhoneInput) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "((value: string) => void)",
+          "required": false
+        },
+        {
+          "name": "onBlur",
+          "type": "(() => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<PhoneField label=\"Phone\" formId=\"contact\" value={phone} error={phoneIssue(phone)} onChange={setPhone} />\n<PhoneField label=\"Mobile\" formId=\"contact\" value={mobile} onChange={setMobile} field={(input) => <TextboxB {...input} />} />",
+      "notes": [
+        "By default the number box is a plain rounded input with the label above and the error below.",
+        "Pass `field` to render the number box with any Textbox instead: spread the props it receives (`label`, `value`, `error`, `maxLength`, `mode`, autocomplete and the input/blur handlers) onto the textbox. The textbox then shows the label and error, and the country picker restyles itself to match TextboxA, B or C.",
+        "The country menu opens above by default; pass `preset={DropdownPreset.BOTTOM}` near the top of a page.",
+        "Validate with `phoneIssue(value)` from the `phone` module; `countries` limits or reorders the list."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/phone_field"
+    },
+    {
+      "name": "QrCode",
+      "summary": "Renders text or a URL as a scalable QR code SVG.",
+      "css": "`qr_code.css`",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "level",
+          "type": "QrLevel",
+          "required": false,
+          "default": "\"M\""
+        },
+        {
+          "name": "quiet",
+          "type": "number",
+          "required": false,
+          "default": "4"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<QrCode value=\"https://example.com/invite/42\" label=\"Invite link\" className=\"w-40\" />",
+      "notes": [
+        "Needs the `qrcode-generator` peer dependency.",
+        "Size it with `className` (e.g. `w-40`).",
+        "`level` is error correction (L, M, Q, H); `quiet` is the margin in modules."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/qr_code"
+    },
+    {
+      "name": "ResourceTable",
+      "summary": "A data table with sorting, paging, selection, status pills and row actions. Below a container width it turns each row into a card.",
+      "css": "`resource_table.css`, plus `sort_heading.css` when you render SortHeading",
+      "props": [
+        {
+          "name": "columns",
+          "type": "readonly TableColumn[]",
+          "required": true
+        },
+        {
+          "name": "rows",
+          "type": "readonly Row[]",
+          "required": true
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "cell",
+          "type": "((row: Row, key: string) => string)",
+          "required": false
+        },
+        {
+          "name": "cellNote",
+          "type": "((row: Row, key: string) => string | null)",
+          "required": false
+        },
+        {
+          "name": "cellClass",
+          "type": "((row: Row, key: string) => string | null)",
+          "required": false
+        },
+        {
+          "name": "badge",
+          "type": "((row: Row, key: string) => string | null)",
+          "required": false
+        },
+        {
+          "name": "rowClass",
+          "type": "((row: Row) => string | null)",
+          "required": false
+        },
+        {
+          "name": "rowEdge",
+          "type": "((row: Row) => { tone: string; label: string; } | null)",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "((row: Row) => RowStatus)",
+          "required": false
+        },
+        {
+          "name": "statusKey",
+          "type": "string",
+          "required": false,
+          "default": "\"status\""
+        },
+        {
+          "name": "statusLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Status\""
+        },
+        {
+          "name": "faded",
+          "type": "((row: Row) => boolean)",
+          "required": false
+        },
+        {
+          "name": "actions",
+          "type": "((row: Row) => TableAction[])",
+          "required": false
+        },
+        {
+          "name": "menu",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "onOpen",
+          "type": "((row: Row) => void)",
+          "required": false
+        },
+        {
+          "name": "sorts",
+          "type": "readonly Sort[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "sortable",
+          "type": "ReadonlySet<string>",
+          "required": false,
+          "default": "NONE"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "pages",
+          "type": "number",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "from",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "to",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "pageSize",
+          "type": "number",
+          "required": false,
+          "default": "10"
+        },
+        {
+          "name": "pageSizes",
+          "type": "readonly number[]",
+          "required": false,
+          "default": "PAGE_SIZES"
+        },
+        {
+          "name": "onPage",
+          "type": "((page: number) => void)",
+          "required": false
+        },
+        {
+          "name": "onPageSize",
+          "type": "((size: number) => void)",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "hasNext",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "selectable",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "selected",
+          "type": "ReadonlySet<string>",
+          "required": false,
+          "default": "NONE"
+        },
+        {
+          "name": "onSelect",
+          "type": "((id: string) => void)",
+          "required": false
+        },
+        {
+          "name": "onSelectPage",
+          "type": "((on: boolean) => void)",
+          "required": false
+        },
+        {
+          "name": "fill",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "stackAt",
+          "type": "64 | 24 | 32 | 40 | 48 | 56 | 72 | 80 | 88 | 96 | 104 | 112",
+          "required": false
+        },
+        {
+          "name": "actionsLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Actions\""
+        },
+        {
+          "name": "selectPageLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Select every row on this page\""
+        },
+        {
+          "name": "selectRowLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Select this row\""
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "scrollClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "tableClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "headClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "headRowClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "headingClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "checkboxClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "actionsClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "menuButtonClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "actionClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "footerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pagerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sizeClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pageButtonClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "content",
+          "type": "((row: Row, key: string, text: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "menuIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "empty",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "range",
+          "type": "((from: number, to: number, total: number) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "pageText",
+          "type": "((page: number, pages: number) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "sizeCaption",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "previous",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "sortHeading",
+          "type": "((key: string, label: string) => ReactNode)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<ResourceTable\n  stackAt={40}\n  columns={[{ key: \"name\", label: \"Name\" }, { key: \"joined\", label: \"Joined\", date: true }]}\n  rows={rows}\n  status={(row) => ({ label: row.active ? \"Active\" : \"Away\", tone: row.active ? \"bg-emerald-100 text-emerald-800\" : \"bg-zinc-100 text-zinc-600\" })}\n  menu\n  actions={(row) => [{ id: \"edit\", label: \"Edit\", run: () => edit(row) }, { id: \"delete\", label: \"Delete\", tone: \"danger\", run: () => remove(row) }]}\n  sorts={sorts} sortable={new Set([\"name\", \"joined\"])}\n  sortHeading={(key, label) => <SortHeading sortKey={key} label={label} sorts={sorts} onSort={(k, d) => setSorts((s) => headerSort(s, k, d))} />}\n  selectable selected={selected} onSelect={toggleRow} onSelectPage={(on) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set())}\n  page={page} pages={pages} from={from} to={from + rows.length} total={total} pageSize={pageSize} onPage={setPage} onPageSize={setPageSize}\n/>",
+      "notes": [
+        "Rows need an `id` string. `columns` is `{ key, label, date? }[]`; cells show `row[key]` unless `cell` returns other text.",
+        "Fully controlled: pass `sorts`, `page`, `pages`, `from`, `to`, `total`, `pageSize` and `selected`, and update them in the callbacks. Do the sorting, filtering and slicing yourself.",
+        "`stackAt` is the container width in rem below which rows become cards (24 to 112 in steps of 8). The default is at least 80, so tables in narrow layouts stack; lower it to keep a table.",
+        "`actions(row)` returns `{ id, label, tone?, run }[]`. Add `menu` to show them behind a ⋯ button; without it they render as inline links, which suits one or two actions.",
+        "`status(row)` adds a pill column; `busy` shows `loading`; no rows shows `empty`.",
+        "`fill` makes the table fill a fixed-height parent with a sticky header."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/resource_table"
+    },
+    {
+      "name": "Select",
+      "summary": "A labelled select with a custom menu, single or multiple, with an optional clear option and error line.",
+      "css": "`select.css`, `field.css`, `dropdown.css` and frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "options",
+          "type": "readonly SelectOption[]",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "values",
+          "type": "readonly string[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "multiple",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "summary",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "default": "\"—\""
+        },
+        {
+          "name": "clearable",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "labelled",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.BOTTOM"
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.CLICK"
+        },
+        {
+          "name": "style",
+          "type": "CSSProperties",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dropdownClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "triggerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "wrapperClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "optionClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((label: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "trigger",
+          "type": "((selected: SelectOption | undefined, shown: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "option",
+          "type": "((option: SelectOption) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "tick",
+          "type": "Content<[selected: boolean]>",
+          "required": false
+        },
+        {
+          "name": "chevron",
+          "type": "Content",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "((error: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "((value: string) => void)",
+          "required": false
+        },
+        {
+          "name": "onToggle",
+          "type": "((value: string) => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<Select label=\"Fruit\" options={[{ value: \"apple\", label: \"Apple\" }, { value: \"pear\", label: \"Pear\" }]} value={fruit} placeholder=\"Pick one\" clearable onChange={setFruit} />",
+      "notes": [
+        "Single: `value` + `onChange`. Multiple: `multiple`, `values` + `onToggle(value)`, and `summary` for the closed text (e.g. \"2 selected\").",
+        "`clearable` adds a first option that sets the value to \"\" and shows `placeholder`.",
+        "`option` renders each option and the selected value; `chevron` replaces the arrow; `labelled={false}` hides the label and error.",
+        "`preset={DropdownPreset.TOP}` opens the menu above."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/select"
+    },
+    {
+      "name": "Slider",
+      "summary": "A single-value slider built on a native range input.",
+      "css": "`slider.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "step",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "defaultValue",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "onInput",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "trackClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "thumbClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "backtrackClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "labelPos",
+          "type": "\"i\" | \"l\" | \"r\"",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "labelParse",
+          "type": "((n: number) => string)",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement",
+      "native": false,
+      "example": "<Slider label=\"Volume\" formId=\"audio\" max={100} defaultValue={40} labelPos=\"r\" onChange={(event) => setVolume(Number(event.currentTarget.value))} />",
+      "notes": [
+        "`labelPos` is `\"l\"`, `\"r\"` (fixed-width label beside the bar) or `\"i\"` (inside the thumb).",
+        "`defaultValue` sets the start; it is uncontrolled after that, so read changes from the input/change events.",
+        "`labelParse` formats the label."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/slider"
+    },
+    {
+      "name": "SmartGridView",
+      "summary": "A masonry grid that places tiles by their aspect ratio to keep columns even, with infinite scroll.",
+      "css": "`smart_grid_view.css`",
+      "props": [
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "innerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "images",
+          "type": "SmartGridImg",
+          "required": true
+        },
+        {
+          "name": "template",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "columns",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "threshold",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "onScrollEnd",
+          "type": "(() => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<SmartGridView className=\"h-96\" columns={3} images={Object.fromEntries(photos.map((photo) => [photo.id, [photo.height / photo.width, <img src={photo.url} alt=\"\" />]]))} onScrollEnd={loadMore} />",
+      "notes": [
+        "Each tile carries a height ratio (height ÷ width) used for placement.",
+        "`columns` fixes the column count; otherwise it adapts to width.",
+        "`onScrollEnd` fires within `threshold` px of the bottom; set `loading` while fetching to show `template` placeholders.",
+        "`images` is a record of key → `[ratio, node]`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/smart_grid_view"
+    },
+    {
+      "name": "SortHeading",
+      "summary": "A column heading with ascending and descending arrows that shows its rank in a multi-column sort.",
+      "css": "`sort_heading.css`",
+      "props": [
+        {
+          "name": "sortKey",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sorts",
+          "type": "readonly Sort[]",
+          "required": true
+        },
+        {
+          "name": "ascTitle",
+          "type": "string",
+          "required": false,
+          "default": "\"Ascending\""
+        },
+        {
+          "name": "descTitle",
+          "type": "string",
+          "required": false,
+          "default": "\"Descending\""
+        },
+        {
+          "name": "ascLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "descLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "arrowsClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "buttonClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((label: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "arrow",
+          "type": "((direction: SortDirection) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "onSort",
+          "type": "((key: string, direction: SortDirection) => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<th><SortHeading sortKey=\"name\" label=\"Name\" sorts={sorts} onSort={(key, direction) => setSorts((s) => headerSort(s, key, direction))} /></th>",
+      "notes": [
+        "Pair it with `headerSort` from the `sorts` module to compute the next `sorts`.",
+        "Usually rendered through ResourceTable's `sortHeading` slot; it also works in any `<th>`.",
+        "The column key prop is `sortKey` (React reserves `key`)."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/sort_heading"
+    },
+    {
+      "name": "TextEditor",
+      "summary": "A markdown editor (CodeMirror) with a formatting toolbar, live styling, a character counter and insertable snippets such as `{{first_name}}`.",
+      "css": "`text_editor.css`, `field.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rows",
+          "type": "number",
+          "required": false,
+          "default": "12"
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "readOnly",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "labelled",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "tools",
+          "type": "readonly (readonly Tool[])[]",
+          "required": false,
+          "default": "TOOL_GROUPS"
+        },
+        {
+          "name": "snippets",
+          "type": "readonly TextSnippet[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "insertLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Insert\""
+        },
+        {
+          "name": "toolbarLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Formatting\""
+        },
+        {
+          "name": "variableClass",
+          "type": "VariableClass",
+          "required": false
+        },
+        {
+          "name": "extensions",
+          "type": "Extension[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "toolbarClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "toolClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dividerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "insertClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "itemClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sourceClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((text: string, labelId: string, forId: string, labelled: boolean) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "glyph",
+          "type": "((action: FormatAction) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "insert",
+          "type": "((label: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "((error: string, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "((text: string, maxLength: number | undefined, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "item",
+          "type": "((snippet: TextSnippet) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "((value: string) => void)",
+          "required": false
+        },
+        {
+          "name": "onBlur",
+          "type": "(() => void)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<TextEditor label=\"Message\" formId=\"email\" value={body} onChange={setBody} maxLength={2000} snippets={[{ label: \"First name\", text: \"{{first_name}}\" }]} />",
+      "notes": [
+        "Needs the CodeMirror and markdown-it peer dependencies.",
+        "The value is markdown text.",
+        "`snippets` (`{ label, text }[]`) fills the Insert menu; `variableClass(name)` styles `{{name}}` tokens, e.g. to flag unknown variables.",
+        "`tools` limits the toolbar groups; `rows` sets the height in lines.",
+        "Read-only is `readOnly`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/text_editor"
+    },
+    {
+      "name": "TextboxA",
+      "summary": "A filled text field with the label below it; becomes a textarea when `height` is above 3.25.",
+      "css": "`textbox.a.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "\"text\" | \"search\" | \"none\" | \"tel\" | \"url\" | \"email\" | \"numeric\" | \"decimal\"",
+          "required": false,
+          "default": "\"text\""
+        },
+        {
+          "name": "guard",
+          "type": "RegExp",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "required": false,
+          "default": "2.25"
+        },
+        {
+          "name": "wrap",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "text_size",
+          "type": "string",
+          "required": false,
+          "default": "\"text-base\""
+        },
+        {
+          "name": "border_active",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "border_error",
+          "type": "string",
+          "required": false,
+          "default": "\"border-red-600\""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "onBlur",
+          "type": "FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "FormEventHandler<HTMLInputElement | HTMLTextAreaElement>",
+          "required": false
+        },
+        {
+          "name": "secret",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "onReveal",
+          "type": "((revealed: boolean) => void)",
+          "required": false
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "showIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement | HTMLTextAreaElement",
+      "native": true,
+      "example": "<TextboxA label=\"Postcode\" formId=\"address\" mode=\"numeric\" guard={/^\\d{0,5}$/} maxLength={5} />",
+      "notes": [
+        "`guard` is a RegExp the whole value must match; keystrokes that break it are rejected (e.g. `/^\\d{0,5}$/`).",
+        "`mode` sets the keyboard and input type (email, tel, numeric, decimal, …).",
+        "`height` is in rem; `wrap` lets long lines wrap.",
+        "`secret` makes it a password input with a show/hide button (needs `textbox.reveal.css`); `showIcon` / `hideIcon` take text or an icon, and `revealed` is the shown state (Svelte: `bind:revealed`; React: `revealed` + `onReveal`, or leave it uncontrolled)."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/textbox.a"
+    },
+    {
+      "name": "TextboxB",
+      "summary": "An outlined text field whose label sits inside until focus or input, then floats onto the top border. A line under it is always reserved for the error so the layout never jumps.",
+      "css": "`textbox.b.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "TextMode",
+          "required": false,
+          "default": "\"text\""
+        },
+        {
+          "name": "guard",
+          "type": "RegExp",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "required": false,
+          "default": "2.75"
+        },
+        {
+          "name": "wrap",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((text: string, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "((error: string | undefined, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "secret",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "onReveal",
+          "type": "((revealed: boolean) => void)",
+          "required": false
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "showIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "forwardsRef": "TextField",
+      "native": true,
+      "example": "<TextboxB label=\"Email\" formId=\"signup\" mode=\"email\" value={email} error={emailError} onChange={(event) => setEmail(event.currentTarget.value)} />",
+      "notes": [
+        "The label and border-gap use the container background (`bg-inherit`); set `className` with a `bg-*` when the field sits on a coloured surface.",
+        "No placeholder: the label plays that role. Use TextboxC if you need one.",
+        "`caption` replaces the label and `message` the error line.",
+        "`secret` adds a password show/hide button, exactly as on TextboxA."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/textbox.b"
+    },
+    {
+      "name": "TextboxC",
+      "summary": "The same outlined field as TextboxB, but the label always sits on the border and a placeholder is allowed.",
+      "css": "`textbox.b.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "TextMode",
+          "required": false,
+          "default": "\"text\""
+        },
+        {
+          "name": "guard",
+          "type": "RegExp",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "required": false,
+          "default": "2.75"
+        },
+        {
+          "name": "wrap",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "((text: string, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "((error: string | undefined, id: string) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "secret",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "onReveal",
+          "type": "((revealed: boolean) => void)",
+          "required": false
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "showIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "forwardsRef": "TextField",
+      "native": true,
+      "example": "<TextboxC label=\"Address\" formId=\"checkout\" placeholder=\"Street, city, postcode\" height={6} wrap />",
+      "notes": [
+        "Shares `textbox.b.css` with TextboxB.",
+        "`secret` adds a password show/hide button, exactly as on TextboxA."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/textbox.c"
+    },
+    {
+      "name": "Toggle",
+      "summary": "An on/off switch backed by a checkbox.",
+      "css": "`toggle.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "trackClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "thumbClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "onChange",
+          "type": "FormEventHandler<HTMLInputElement>",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "forwardsRef": "HTMLInputElement",
+      "native": false,
+      "example": "<Toggle label=\"Notifications\" formId=\"settings\" onChange={(event) => setOn(event.currentTarget.checked)} />",
+      "notes": [
+        "Colour the on state with `trackClass=\"peer-checked:bg-indigo-600\"`.",
+        "The checkbox's `value` is \"true\" or \"false\" after a change."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/toggle"
+    },
+    {
+      "name": "Tooltip",
+      "summary": "Wraps a trigger and shows a small popup beside it on hover and keyboard focus.",
+      "css": "`tooltip.css`, which needs `dropdown.css` imported before it",
+      "props": [
+        {
+          "name": "content",
+          "type": "ReactNode | (() => ReactNode)",
+          "required": true
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.TOP"
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "interactive",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "wrapperClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "innerModalClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode | ((trigger: TooltipTrigger) => ReactNode)",
+          "required": false
+        }
+      ],
+      "native": false,
+      "example": "<Tooltip content=\"Saves a draft without publishing\">\n  {(trigger) => <button {...trigger} className=\"field-box\">Save draft</button>}\n</Tooltip>",
+      "notes": [
+        "`content` is a string or a snippet; it renders inside `role=\"tooltip\"`.",
+        "`preset` takes a DropdownPreset for the side (TOP by default, BOTTOM, LEFT, RIGHT).",
+        "It shows on hover (pointer devices only) and whenever focus is inside the trigger, so give non-focusable triggers `tabindex=\"0\"`.",
+        "`interactive` keeps it open while the pointer is over it so links inside can be clicked; `open` pins it visible.",
+        "The default bubble is dark; restyle it with `innerModalClass` (e.g. `bg-white text-zinc-700 border border-zinc-200`). `--tooltip-shift` sets the slide-in distance.",
+        "`children` is the trigger. Pass a function `(trigger) => node` to receive `aria-describedby` and spread it on the trigger element."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/tooltip"
+    },
+    {
+      "name": "UploadPanel",
+      "summary": "A drop zone / file picker with an upload queue, progress bars, retry, and a Clear finished button. You provide the transport.",
+      "css": "`upload_panel.css`",
+      "props": [
+        {
+          "name": "upload",
+          "type": "UploadFile",
+          "required": true
+        },
+        {
+          "name": "isDuplicate",
+          "type": "((error: unknown) => boolean)",
+          "required": false
+        },
+        {
+          "name": "concurrency",
+          "type": "number",
+          "required": false,
+          "default": "2"
+        },
+        {
+          "name": "accept",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "multiple",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "formId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uploadsLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Uploads\""
+        },
+        {
+          "name": "errorLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"The upload failed\""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dropClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "headerClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "listClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "itemClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "barClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fillClass",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "drop",
+          "type": "((dragging: boolean) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "heading",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "clear",
+          "type": "Content<[run: () => void]>",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "((upload: Upload) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "tag",
+          "type": "((upload: Upload) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "((upload: Upload) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "note",
+          "type": "((upload: Upload) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "failure",
+          "type": "((upload: Upload, retry: () => void) => ReactNode)",
+          "required": false
+        },
+        {
+          "name": "onSettled",
+          "type": "(() => void)",
+          "required": false
+        }
+      ],
+      "forwardsRef": "UploadPanelHandle",
+      "native": false,
+      "example": "<UploadPanel upload={(file, progress) => api.upload(file, folder, progress)} tag={() => <span className=\"text-xs\">{folder}</span>}>\n  <Select label=\"Upload into\" options={folders} value={folder} onChange={setFolder} />\n</UploadPanel>",
+      "notes": [
+        "`upload(file, progress)` must return a promise; call `progress(sent, total)` as bytes go out and throw to mark a failure (the error message is shown with Retry).",
+        "`isDuplicate(error)` turns a thrown error into a \"Duplicate\" note instead of a failure.",
+        "Children render under the drop zone, e.g. a Select for the destination folder; `tag(upload)` renders next to each file in the queue.",
+        "`concurrency` caps parallel uploads; `onSettled` fires when the queue empties.",
+        "A ref exposes `add(files)` to queue files from elsewhere (e.g. a paste handler)."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui/upload_panel"
+    }
+  ],
+  "helpers": [
+    {
+      "path": "presets.client",
+      "summary": "`DropdownPreset` (TOP, BOTTOM, LEFT, RIGHT), `DropdownAnchor`, `PanelPreset` (TOP, BOTTOM, LEFT, RIGHT), `CardPreset` and `Interact` (HOVER, CLICK, HOVER_N_CLICK). Use on client-rendered pages."
+    },
+    {
+      "path": "presets.server",
+      "summary": "The same presets for server-rendered or statically generated pages."
+    },
+    {
+      "path": "sorts",
+      "summary": "`Sort`, `SortDirection` and `headerSort(sorts, key, direction, mode?)`, which returns the next sort list when a SortHeading arrow is clicked (clicking the active direction removes that sort)."
+    },
+    {
+      "path": "filters",
+      "summary": "`FilterSize` and the presets `SEARCH_SIZE`, `FILTER_SIZE`, `WIDE_SIZE`, `CLEAR_SIZE` for FilterRow's `sizes`."
+    },
+    {
+      "path": "phone",
+      "summary": "`DIAL_COUNTRIES`, `DialCountry`, `joinPhone`, `splitPhone`, `digitsOnly` and `phoneIssue(stored)` (returns an error message or null) for PhoneField values."
+    },
+    {
+      "path": "utils",
+      "summary": "`ify(...classes)` joins truthy class names; `Content` is the string-or-render-function prop type."
+    }
+  ]
+}

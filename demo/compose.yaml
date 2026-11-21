@@ -1,0 +1,22 @@
+name: gibbing-demo
+
+x-demo: &demo
+  build:
+    context: ..
+    dockerfile: demo/Dockerfile
+    additional_contexts:
+      frontail: ../../frontail
+  init: true
+
+services:
+  react:
+    <<: *demo
+    command: npm run dev -w gibbing-demo-react -- --host 0.0.0.0 --strictPort
+    ports:
+      - "5180:5180"
+
+  svelte:
+    <<: *demo
+    command: npm run dev -w gibbing-demo-svelte -- --host 0.0.0.0 --strictPort
+    ports:
+      - "5181:5181"

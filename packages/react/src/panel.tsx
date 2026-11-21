@@ -2,7 +2,7 @@
 
 import type { ReactNode, TouchEventHandler } from "react";
 import { useEffect, useRef } from "react";
-import { cacheRect, disable, ify } from "./utils";
+import { disable, ify } from "./utils";
 import type { PanelPreset } from "./presets.client";
 
 function scanPanelResize(value: number, ratio: (number | ('<'|'<=') | 'x')[]) {
@@ -72,9 +72,18 @@ export default function Panel({
   const styles = preset.split(' ')
   const side = styles.pop() as 't'|'l'|'r'|'b';
 
-  useEffect(() => cacheRect(prect, parent.current), []);
+  function beginDrag() {
+    if(!parent.current || !container.current) return false;
+    prect.current = parent.current.getBoundingClientRect();
+    container.current.style.transition = 'none';
+    return true;
+  }
+  function endDrag() {
+    container.current!.style.transition = '';
+    applyPanelLockSize(container.current!, draggable.current!, side, ratio);
+  }
   function handleMouseDown() {
-    if(prect.current == undefined) return;
+    if(!beginDrag()) return;
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('visibilitychange', handleMouseUp);
@@ -91,10 +100,10 @@ export default function Panel({
     document.removeEventListener('mouseup', handleMouseUp);
     document.removeEventListener('visibilitychange', handleMouseUp);
     window.removeEventListener('blur', handleMouseUp);
-    applyPanelLockSize(container.current!, draggable.current!, side, ratio);
+    endDrag();
   }
   const handleTouchStart : TouchEventHandler<HTMLDivElement> = (e) => {
-    if(prect.current == undefined) return;
+    if(!beginDrag()) return;
     touchRef.current = e.targetTouches[0].identifier;
     document.addEventListener('touchmove', handleTouchMove);
     document.addEventListener('touchend', handleTouchEnd);
@@ -114,24 +123,23 @@ export default function Panel({
     document.removeEventListener('visibilitychange', handleTouchEnd);
     window.removeEventListener('blur', handleTouchEnd);
     touchRef.current = null;
-    applyPanelLockSize(container.current!, draggable.current!, side, ratio);
+    endDrag();
   }
   useEffect(() => { if(container.current) {
     container.current.style.width = '';
     container.current.style.height = '';
   }}, [side]);
   useEffect(() => { if(container.current && parent.current && draggable.current) {
-    const new_size = default_ratio? (typeof default_ratio == 'string'? 
-      default_ratio : (ratio[2+(default_ratio*4)]+'%')
-    ) : '50%';
-    (side == 'l' || side == 'r')? (container.current.style.width = new_size == 'x'? '50%' : new_size) 
-      : (container.current.style.height = new_size == 'x'? '50%' : new_size);
+    const lock = typeof default_ratio == 'number'? ratio[2+(default_ratio*4)] : undefined;
+    const new_size = typeof default_ratio == 'string'? default_ratio : (typeof lock == 'number'? lock*100+'%' : '50%');
+    (side == 'l' || side == 'r')? (container.current.style.width = new_size) 
+      : (container.current.style.height = new_size);
   }}, [ side, ratio, default_ratio ]);
   return (<div ref={parent} className={ify("layers w-full h-full",className)}>
     <div className="layer w-full h-full">{ children }</div>
     <div draggable={false} onDragStart={disable} ref={container} className={ify("flex layer overflow-hidden transition-all border-slate-200",styles[0],modalClass)}>
       <article draggable={false} onDragStart={disable} className={ify("flex flex-col shrink w-full h-full select-none drag-none", side=='b'?'pt-4':(side=='t'&&'pb-4'))}>{ modal }</article>
-      <div draggable={false} onDragStart={disable} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} ref={draggable} className={ify("flex sticky gap-1 p-1 bg-slate-100 border-slate-400",styles[1],dragClass)}>
+      <div draggable={false} onDragStart={disable} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} ref={draggable} className={ify("flex sticky touch-none gap-1 p-1 bg-slate-100 border-slate-400",styles[1],dragClass)}>
         {(side=='l'||side=='r')? <svg className={ify("my-auto h-1/4",side=='r'&&'-scale-x-100')} height="100%" width="12" preserveAspectRatio="none" viewBox="0 0 16 80">
           <line x1="4" y1="25" x2="4" y2="55" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
           <line x1="12" y1="10" x2="12" y2="70" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />

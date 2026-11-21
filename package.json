@@ -2,11 +2,16 @@
   "name": "gibbing-headless-ui",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "demo/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "build:react": "npm run build -w @marthvon/gibbing-headless-ui"
+    "build:react": "npm run build -w @marthvon/gibbing-headless-ui",
+    "demo:react": "npm run dev -w gibbing-demo-react",
+    "demo:svelte": "npm run dev -w gibbing-demo-svelte",
+    "ai-guide": "node scripts/ai-guide.mjs",
+    "ai-guide:check": "node scripts/ai-guide.mjs --check"
   },
   "devDependencies": {
     "@types/node": "^24.0.1",

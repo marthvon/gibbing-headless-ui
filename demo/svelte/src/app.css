@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "@marthvon/frontail/theme/extraScreens.css";
+@import "@marthvon/frontail/theme/keyframes.css";
+@import "@marthvon/frontail/base/input.css";
+@import "@marthvon/frontail/utilities/animate.css";
+@import "@marthvon/frontail/utilities/scrollbar.css";
+@import "@marthvon/frontail/utilities/3d.css";
+@import "@marthvon/frontail/utilities/layouts.css";
+@import "@marthvon/frontail/utilities/modal.css";
+@import "@marthvon/frontail/utilities/layers.css";
+@import "@marthvon/frontail/utilities/text.css";
+@import "@marthvon/frontail/components/index.css";
+@source "../../../packages/svelte/src";

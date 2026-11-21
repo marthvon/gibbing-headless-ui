@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { ify, twId } from "./utils";
+  import { ify, twId, zLayer } from "./utils";
   import { type DropdownPreset, Interact } from "./presets.client";
 
+  export let zIndex: number | undefined = undefined;
   export let className: string | undefined = undefined;
   export let modalClass: string | undefined = undefined;
   export let innerModalClass: string | undefined = undefined;
@@ -19,7 +20,7 @@
   $: styles = preset.split(" ");
 </script>
 
-<div class={ify("flex group", styles[0], className)}>
+<div class={ify("flex group", styles[0], className)} style={zLayer(zIndex)}>
   <input type="checkbox" {id} class="peer ghost-node" />
   <label for={id} class="group layer cursor-pointer w-full">{#if children}{@render children()}{/if}</label>
   {#if (interact & Interact.CLICK) && clickOut}

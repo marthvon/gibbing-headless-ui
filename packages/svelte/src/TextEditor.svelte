@@ -13,7 +13,7 @@
   } from "./_internal/text_format";
   import type { VariableClass } from "./_internal/text_highlight";
   import { LiveEditor } from "./_internal/text_view";
-  import { ify, twId } from "./utils";
+  import { ify, twId, zLayer } from "./utils";
 
   export let label: string;
   export let value: string = "";
@@ -29,10 +29,9 @@
   export let toolbarLabel: string = "Formatting";
   export let variableClass: VariableClass | undefined = undefined;
   export let extensions: Extension[] = [];
-  export let status: (text: string, maxLength: number | undefined) => string = editorStatus;
   export let formId: string | undefined = undefined;
+  export let zIndex: number | undefined = undefined;
   export let className: string | undefined = undefined;
-  export let labelClass: string | undefined = undefined;
   export let boxClass: string | undefined = undefined;
   export let toolbarClass: string | undefined = undefined;
   export let toolClass: string | undefined = undefined;
@@ -41,9 +40,11 @@
   export let menuClass: string | undefined = undefined;
   export let itemClass: string | undefined = undefined;
   export let sourceClass: string | undefined = undefined;
-  export let errorClass: string | undefined = undefined;
-  export let statusClass: string | undefined = undefined;
+  export let caption: Snippet<[string, string, string, boolean]> | undefined = undefined;
   export let glyph: Snippet<[FormatAction]> | undefined = undefined;
+  export let insert: Snippet<[string]> | undefined = undefined;
+  export let message: Snippet<[string, string]> | undefined = undefined;
+  export let status: Snippet<[string, number | undefined, string]> | undefined = undefined;
   export let item: Snippet<[TextSnippet]> | undefined = undefined;
   export let onchange: ((value: string) => void) | undefined = undefined;
   export let onblur: (() => void) | undefined = undefined;
@@ -103,7 +104,7 @@
     if (live) live.apply(formatEdit(action, live.text(), live.selection()));
   }
 
-  function insert(snippet: TextSnippet) {
+  function place(snippet: TextSnippet) {
     open = false;
     if (live) live.apply(insertEdit(live.selection(), snippet.text, snippet.pick));
   }
@@ -200,6 +201,17 @@
   }
 </script>
 
+{#snippet defaultCaption(text: string, labelId: string, target: string, shown: boolean)}
+  <label id={labelId} for={target} class={shown ? "field-label" : "field-label-hidden"}>{text}</label>
+{/snippet}
+{#snippet defaultInsert(text: string)}
+  <span class="text-editor-insert-label">{text}</span>
+  <svg viewBox="0 0 24 24" class="text-editor-chevron" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+{/snippet}
+{#snippet defaultMessage(text: string, messageId: string)}<p id={messageId} class="field-error">{text}</p>{/snippet}
+{#snippet defaultStatus(text: string, max: number | undefined, statusId: string)}<p id={statusId} class="text-editor-status">{editorStatus(text, max)}</p>{/snippet}
 {#snippet defaultGlyph(action: FormatAction)}
   {#if action === "bold"}
     <span class="text-editor-bold">B</span>
@@ -231,8 +243,8 @@
   {/if}
 {/snippet}
 
-<div class={ify("field text-editor-field", className)}>
-  <label id="{id}-label" for={id} class={ify(labelled ? "field-label" : "field-label-hidden", labelClass)}>{label}</label>
+<div class={ify("field text-editor-field", className)} style={zLayer(zIndex)}>
+  {@render (caption ?? defaultCaption)(label, `${id}-label`, id, labelled)}
   <div class={ify("text-editor", error && "field-invalid", readonly && "text-editor-readonly", boxClass)}>
     {#if !readonly}
       <div
@@ -284,10 +296,7 @@
               }}
               onfocus={() => (current = flat.length)}
             >
-              <span class="text-editor-insert-label">{insertLabel}</span>
-              <svg viewBox="0 0 24 24" class="text-editor-chevron" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+              {@render (insert ?? defaultInsert)(insertLabel)}
             </button>
             <div
               bind:this={menu}
@@ -306,7 +315,7 @@
                   tabindex="-1"
                   class={ify("text-editor-menu-item", itemClass)}
                   onmousedown={keep}
-                  onclick={() => insert(snippet)}
+                  onclick={() => place(snippet)}
                 >
                   {#if item}
                     {@render item(snippet)}
@@ -323,6 +332,6 @@
     {/if}
     <div bind:this={host} class={ify("text-editor-source", sourceClass)}></div>
   </div>
-  {#if error}<p id="{id}-error" class={ify("field-error", errorClass)}>{error}</p>{/if}
-  <p id="{id}-status" class={ify("text-editor-status", statusClass)}>{status(value, maxLength)}</p>
+  {#if error}{@render (message ?? defaultMessage)(error, `${id}-error`)}{/if}
+  {@render (status ?? defaultStatus)(value, maxLength, `${id}-status`)}
 </div>

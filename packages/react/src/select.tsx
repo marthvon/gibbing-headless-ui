@@ -3,7 +3,7 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import Dropdown from "./dropdown";
 import { DropdownPreset, Interact } from "./presets.client";
-import { ify } from "./utils";
+import { ify, zLayer, type Content } from "./utils";
 
 export type SelectOption = { value: string; label: string };
 
@@ -20,30 +20,29 @@ export type SelectProps = {
   error?: string | null;
   preset?: DropdownPreset;
   interact?: Interact;
-  tickMark?: string;
   style?: CSSProperties;
+  zIndex?: number;
   className?: string;
-  labelClass?: string;
   dropdownClass?: string;
   triggerClass?: string;
-  valueClass?: string;
   wrapperClass?: string;
   modalClass?: string;
   menuClass?: string;
   optionClass?: string;
-  tickClass?: string;
-  errorClass?: string;
+  caption?: (label: string) => ReactNode;
   trigger?: (selected: SelectOption | undefined, shown: string) => ReactNode;
   option?: (option: SelectOption) => ReactNode;
+  tick?: Content<[selected: boolean]>;
+  chevron?: Content;
+  message?: (error: string) => ReactNode;
   onChange?: (value: string) => void;
   onToggle?: (value: string) => void;
 };
 
 export default function Select({
   label, options, value = "", values = [], multiple = false, summary = "", placeholder = "—", clearable = false,
-  labelled = true, error, preset = DropdownPreset.BOTTOM, interact = Interact.CLICK, tickMark = "✓", style,
-  className, labelClass, dropdownClass, triggerClass, valueClass, wrapperClass, modalClass, menuClass, optionClass,
-  tickClass, errorClass, trigger, option, onChange, onToggle
+  labelled = true, error, preset = DropdownPreset.BOTTOM, interact = Interact.CLICK, style, zIndex, className, dropdownClass,
+  triggerClass, wrapperClass, modalClass, menuClass, optionClass, caption, trigger, option, tick, chevron, message, onChange, onToggle
 }: SelectProps) {
   const selected = multiple ? undefined : options.find((choice) => choice.value === value);
   const shown = multiple ? summary : (selected?.label ?? placeholder);
@@ -58,26 +57,29 @@ export default function Select({
     if (box instanceof HTMLInputElement) box.checked = false;
   }
 
-  const menu = options.map((choice) => (
-    <button
-      key={`option-${choice.value}`}
-      type="button"
-      className={ify("select-option", optionClass)}
-      aria-pressed={multiple ? values.includes(choice.value) : undefined}
-      onClick={(event) => pick(choice.value, event)}
-    >
-      {multiple ? <span className={ify("select-tick", tickClass)}>{values.includes(choice.value) ? tickMark : ""}</span> : null}
-      {option ? option(choice) : choice.label}
-    </button>
-  ));
+  const menu = options.map((choice) => {
+    const on = values.includes(choice.value);
+    return (
+      <button
+        key={`option-${choice.value}`}
+        type="button"
+        className={ify("select-option", optionClass)}
+        aria-pressed={multiple ? on : undefined}
+        onClick={(event) => pick(choice.value, event)}
+      >
+        {multiple ? (typeof tick === "function" ? tick(on) : <span className="select-tick">{on ? tick ?? "✓" : ""}</span>) : null}
+        {option ? option(choice) : choice.label}
+      </button>
+    );
+  });
   if (clearable && !multiple)
     menu.unshift(
       <button key="clear" type="button" className={ify("select-option", optionClass)} onClick={(event) => pick("", event)}>{placeholder}</button>
     );
 
   return (
-    <div className={ify("field", className)} style={style}>
-      {labelled ? <span className={ify("field-label", labelClass)}>{label}</span> : null}
+    <div className={ify("field", className)} style={zLayer(zIndex, style)}>
+      {labelled ? (caption ? caption(label) : <span className="field-label">{label}</span>) : null}
       <Dropdown
         preset={preset}
         interact={interact}
@@ -93,10 +95,11 @@ export default function Select({
             ? trigger(selected, shown)
             : option && selected
               ? option(selected)
-              : <span className={ify("select-value", valueClass)} title={shown}>{shown}</span>}
+              : <span className="select-value" title={shown}>{shown}</span>}
+          {typeof chevron === "function" ? chevron() : <span className="select-chevron" aria-hidden="true">{chevron ?? <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="m5 8 5 5 5-5" /></svg>}</span>}
         </span>
       </Dropdown>
-      {labelled && error ? <span className={ify("field-error", errorClass)}>{error}</span> : null}
+      {labelled && error ? (message ? message(error) : <span className="field-error">{error}</span>) : null}
     </div>
   );
 }

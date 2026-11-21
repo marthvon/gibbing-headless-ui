@@ -10,7 +10,7 @@
     PAGE_SIZES, cardWidths, cellText, columnFloor, columnPixels, columnShares, columnWidth, pageSelection, stackName, tableStack,
     type ColumnKind, type Measure, type RowStatus, type StackWidth, type TableAction
   } from "./_internal/table_layout";
-  import { ify } from "./utils";
+  import { ify, zLayer, type Content } from "./utils";
 
   export let columns: readonly TableColumn[];
   export let rows: readonly Row[];
@@ -47,17 +47,10 @@
   export let onselectpage: ((on: boolean) => void) | undefined = undefined;
   export let fill: boolean = false;
   export let stackAt: StackWidth | undefined = undefined;
-  export let empty: string = "Nothing here yet.";
-  export let loadingLabel: string = "Loading…";
-  export let sortByLabel: string = "Sort by";
-  export let rowsLabel: string = "Rows";
-  export let previousLabel: string = "Previous";
-  export let nextLabel: string = "Next";
   export let actionsLabel: string = "Actions";
   export let selectPageLabel: string = "Select every row on this page";
   export let selectRowLabel: string = "Select this row";
-  export let range: (from: number, to: number, total: number) => string = (start, end, count) => `${start + 1}–${end} of ${count}`;
-  export let pageLabel: (page: number, pages: number) => string = (current, count) => `Page ${current + 1} of ${count}`;
+  export let zIndex: number | undefined = undefined;
   export let className: string | undefined = undefined;
   export let scrollClass: string | undefined = undefined;
   export let tableClass: string | undefined = undefined;
@@ -65,8 +58,6 @@
   export let headRowClass: string | undefined = undefined;
   export let headingClass: string | undefined = undefined;
   export let checkboxClass: string | undefined = undefined;
-  export let pillClass: string | undefined = undefined;
-  export let noteClass: string | undefined = undefined;
   export let actionsClass: string | undefined = undefined;
   export let menuButtonClass: string | undefined = undefined;
   export let menuClass: string | undefined = undefined;
@@ -76,7 +67,15 @@
   export let sizeClass: string | undefined = undefined;
   export let pageButtonClass: string | undefined = undefined;
   export let content: Snippet<[Row, string, string]> | undefined = undefined;
-  export let menuIcon: Snippet | undefined = undefined;
+  export let menuIcon: Content | undefined = undefined;
+  export let loading: Content | undefined = undefined;
+  export let empty: Content | undefined = undefined;
+  export let sortBy: Content | undefined = undefined;
+  export let range: Snippet<[number, number, number]> | undefined = undefined;
+  export let pageText: Snippet<[number, number]> | undefined = undefined;
+  export let sizeCaption: Content | undefined = undefined;
+  export let previous: Content | undefined = undefined;
+  export let next: Content | undefined = undefined;
   export let sortHeading: Snippet<[string, string]> | undefined = undefined;
 
   let tableWidth = 0;
@@ -223,7 +222,7 @@
 
 <div
   class={ify("resource-table", fill && "resource-table-fill", rows.length > 2 && "resource-table-many", className)}
-  style="container-name: {stackName(stack)}"
+  style={zLayer(zIndex, `container-name: ${stackName(stack)}`)}
 >
   <div bind:clientWidth={tableWidth} class={ify("resource-table-scroll", fill && "resource-table-scroll-bound", scrollClass)}>
     <table bind:this={tableNode} class={ify("resource-table-grid", tableClass)}>
@@ -250,7 +249,7 @@
               />
             </th>
           {/if}
-          {#if sortsAny}<th aria-hidden="true" class="resource-table-sort-by">{sortByLabel}</th>{/if}
+          {#if sortsAny}<th aria-hidden="true" class="resource-table-sort-by">{#if typeof sortBy === "function"}{@render sortBy()}{:else}{sortBy ?? "Sort by"}{/if}</th>{/if}
           {#each columns as column (column.key)}
             {@render heading(column.key, column.label)}
           {/each}
@@ -260,9 +259,9 @@
       </thead>
       <tbody class="resource-table-body">
         {#if busy}
-          <tr class="resource-table-message"><td colspan={span}>{loadingLabel}</td></tr>
+          <tr class="resource-table-message"><td colspan={span}>{#if typeof loading === "function"}{@render loading()}{:else}{loading ?? "Loading…"}{/if}</td></tr>
         {:else if rows.length === 0}
-          <tr class="resource-table-message"><td colspan={span}>{empty}</td></tr>
+          <tr class="resource-table-message"><td colspan={span}>{#if typeof empty === "function"}{@render empty()}{:else}{empty ?? "Nothing here yet."}{/if}</td></tr>
         {:else}
           {#each rows as row (row.id)}
             {@const dimmed = !!faded?.(row)}
@@ -325,12 +324,12 @@
                   {#if content}
                     {@render content(row, column.key, value)}
                   {:else if tone}
-                    <span class={ify("resource-table-pill", pillClass, tone)}>{value}</span>
+                    <span class={ify("resource-table-pill", tone)}>{value}</span>
                   {:else}
                     <span class="resource-table-value">
                       <span class={ify("resource-table-line", column.date && "resource-table-date")}>{value}</span>
                     </span>
-                    {#if note}<span class={ify("resource-table-note", noteClass)}>{note}</span>{/if}
+                    {#if note}<span class="resource-table-note">{note}</span>{/if}
                   {/if}
                 </td>
               {/each}
@@ -341,7 +340,7 @@
                   style={cardWidth[statusKey] ? `--card-w: ${cardWidth[statusKey]}px` : undefined}
                 >
                   <span class="resource-table-card-label">{statusLabel}</span>
-                  <span class={ify("resource-table-pill", pillClass, standing.tone)}>{standing.label}</span>
+                  <span class={ify("resource-table-pill", standing.tone)}>{standing.label}</span>
                   {#if standing.tag}<span class="resource-table-tag">{standing.tag}</span>{/if}
                 </td>
               {/if}
@@ -360,8 +359,10 @@
                           openMenu = openMenu === row.id ? null : row.id;
                         }}
                       >
-                        {#if menuIcon}
+                        {#if typeof menuIcon === "function"}
                           {@render menuIcon()}
+                        {:else if menuIcon}
+                          {menuIcon}
                         {:else}
                           <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                             <circle cx="8" cy="3" r="1.4" />
@@ -415,10 +416,10 @@
   </div>
   {#if cursor ? rows.length > 0 || page > 0 : total > 0}
     <div class={ify("resource-table-footer", footerClass)}>
-      {#if !cursor}<p>{range(from, to, total)}</p>{/if}
+      {#if !cursor}{#if range}{@render range(from, to, total)}{:else}<p>{from + 1}–{to} of {total}</p>{/if}{/if}
       <div class={ify("resource-table-pager", cursor && "resource-table-pager-end", pagerClass)}>
         <label class="resource-table-size">
-          {rowsLabel}
+          {#if typeof sizeCaption === "function"}{@render sizeCaption()}{:else}{sizeCaption ?? "Rows"}{/if}
           <select
             class={ify("resource-table-size-select", sizeClass)}
             value={pageSize}
@@ -430,16 +431,16 @@
           </select>
         </label>
         <button type="button" class={ify("resource-table-page-button", pageButtonClass)} disabled={page <= 0} onclick={() => onpage?.(page - 1)}>
-          {previousLabel}
+          {#if typeof previous === "function"}{@render previous()}{:else}{previous ?? "Previous"}{/if}
         </button>
-        {#if !cursor}<span>{pageLabel(page, pages)}</span>{/if}
+        {#if !cursor}{#if pageText}{@render pageText(page, pages)}{:else}<span>Page {page + 1} of {pages}</span>{/if}{/if}
         <button
           type="button"
           class={ify("resource-table-page-button", pageButtonClass)}
           disabled={cursor ? !hasNext : page + 1 >= pages}
           onclick={() => onpage?.(page + 1)}
         >
-          {nextLabel}
+          {#if typeof next === "function"}{@render next()}{:else}{next ?? "Next"}{/if}
         </button>
       </div>
     </div>

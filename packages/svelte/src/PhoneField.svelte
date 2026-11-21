@@ -1,5 +1,15 @@
 <script lang="ts" module>
   export type { DialCountry } from "./_internal/phone";
+  export type PhoneInput = {
+    label: string;
+    value: string;
+    error: string | null | undefined;
+    maxLength: number;
+    mode: "tel";
+    autocomplete: "tel-national";
+    oninput: (event: Event & { currentTarget: HTMLInputElement }) => void;
+    onblur: (event: FocusEvent) => void;
+  };
 </script>
 
 <script lang="ts">
@@ -8,30 +18,30 @@
   import { FLAGS } from "./_internal/flags";
   import { DIAL_COUNTRIES, countryFor, dialLabel, digitsOnly, joinPhone, splitPhone, type DialCountry } from "./_internal/phone";
   import { DropdownPreset } from "./presets.client";
-  import { ify, twId } from "./utils";
+  import { ify, twId, zLayer } from "./utils";
 
   export let label: string;
   export let value: string = "";
   export let maxLength: number = 16;
   export let countries: readonly DialCountry[] = DIAL_COUNTRIES;
-  export let floating: boolean = false;
   export let preset: DropdownPreset = DropdownPreset.TOP;
   export let codeLabel: string | undefined = undefined;
   export let format: (country: DialCountry) => string = dialLabel;
   export let formId: string | undefined = undefined;
   export let error: string | null | undefined = undefined;
+  export let zIndex: number | undefined = undefined;
   export let className: string | undefined = undefined;
-  export let labelClass: string | undefined = undefined;
   export let rowClass: string | undefined = undefined;
   export let dialClass: string | undefined = undefined;
   export let triggerClass: string | undefined = undefined;
   export let menuClass: string | undefined = undefined;
   export let optionClass: string | undefined = undefined;
-  export let flagClass: string | undefined = undefined;
   export let numberClass: string | undefined = undefined;
   export let inputClass: string | undefined = undefined;
-  export let errorClass: string | undefined = undefined;
+  export let caption: Snippet<[string, string]> | undefined = undefined;
   export let flag: Snippet<[DialCountry]> | undefined = undefined;
+  export let message: Snippet<[string]> | undefined = undefined;
+  export let field: Snippet<[PhoneInput]> | undefined = undefined;
   export let onchange: ((value: string) => void) | undefined = undefined;
   export let onblur: (() => void) | undefined = undefined;
 
@@ -47,6 +57,7 @@
   }
   $: nationalMax = Math.max(1, maxLength - countryFor(iso, countries).dial.length);
   $: options = countries.map((country) => ({ value: country.iso, label: format(country) }));
+  $: input = { label, value: national, error, maxLength: nationalMax, mode: "tel", autocomplete: "tel-national", oninput: onNational, onblur: leave } satisfies PhoneInput;
 
   function emit(nextIso: string, nextNational: string) {
     const capped = joinPhone(countryFor(nextIso, countries).dial, nextNational).slice(0, maxLength);
@@ -72,8 +83,11 @@
   }
 </script>
 
-<div bind:this={root} class={ify("field phone-field", className)}>
-  {#if !floating}<label class={ify("field-label", labelClass)} for={id}>{label}</label>{/if}
+{#snippet defaultCaption(text: string, target: string)}<label class="field-label" for={target}>{text}</label>{/snippet}
+{#snippet defaultMessage(text: string)}<p class="field-error">{text}</p>{/snippet}
+
+<div bind:this={root} class={ify("field phone-field", className)} style={zLayer(zIndex)}>
+  {#if !field}{@render (caption ?? defaultCaption)(label, id)}{/if}
   <div class={ify("phone-row", rowClass)}>
     <Select
       label={codeLabel ?? `${label} country code`}
@@ -93,30 +107,28 @@
         {#if flag}
           {@render flag(countryFor(choice.value, countries))}
         {:else}
-          <svg viewBox="0 0 20 14" class={ify("phone-flag", flagClass)} aria-hidden="true">{@html FLAGS[choice.value] ?? ""}</svg>
+          <svg viewBox="0 0 20 14" class="phone-flag" aria-hidden="true">{@html FLAGS[choice.value] ?? ""}</svg>
         {/if}
         {choice.label}
       {/snippet}
     </Select>
     <div class={ify("phone-number", numberClass)}>
-      <input
-        {id}
-        type="tel"
-        inputmode="tel"
-        autocomplete="tel-national"
-        class={floating
-          ? ify("peer textbox-a0 phone-floating", error ? "field-invalid" : "textbox-a1", inputClass)
-          : ify("field-box", error && "field-invalid", inputClass)}
-        placeholder={floating ? "ㅤ" : undefined}
-        maxlength={nationalMax}
-        value={national}
-        oninput={onNational}
-        onblur={leave}
-      />
-      {#if floating}
-        <label class={ify("textbox-text-a textbox-label-a pointer-events-none", labelClass)} for={id}>{error ?? label}</label>
+      {#if field}
+        {@render field(input)}
+      {:else}
+        <input
+          {id}
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel-national"
+          class={ify("field-box", error && "field-invalid", inputClass)}
+          maxlength={nationalMax}
+          value={national}
+          oninput={onNational}
+          onblur={leave}
+        />
       {/if}
     </div>
   </div>
-  {#if error && !floating}<p class={ify("field-error", errorClass)}>{error}</p>{/if}
+  {#if error && !field}{@render (message ?? defaultMessage)(error)}{/if}
 </div>

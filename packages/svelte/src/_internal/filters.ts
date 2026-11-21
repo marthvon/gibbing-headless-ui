@@ -1,3 +1,5 @@
+import { observeSize, unobserveSize } from "./resize";
+
 export type FilterSize = { width: number; min: number; grow: boolean };
 
 export const FILTER_GAP = 0.75;
@@ -51,14 +53,16 @@ export function filterBreaks(sizes: readonly FilterSize[], aside = FILTER_ASIDE)
 
 export function filterRow(
   sizes: readonly FilterSize[],
-  aside = FILTER_ASIDE,
-  tools = 1,
-): { row: string; slots: string[] } {
+  icons = 0,
+  clear = 0,
+): { row: string; slots: string[]; fit: number } {
   const at = ends(sizes);
+  const clearSpace = clear > 0 ? FILTER_GAP + clear : 0;
+  const fitAside = icons * FILTER_ASIDE + clearSpace;
   const slots = sizes.map((size, index) =>
     [
       `--filter-width: ${size.width}rem`,
-      `--filter-min: ${index === 0 ? `min(${size.min}rem, 100% - ${aside}rem)` : `${size.min}rem`}`,
+      `--filter-min: ${index === 0 ? `min(${size.min}rem, 100% - var(--filter-aside))` : `${size.min}rem`}`,
       `--filter-end: ${index === 0 ? 0 : at[index]}rem`,
       `--filter-next: ${at[index + 1] ?? LAST}rem`,
       ...(size.grow ? [] : ["--filter-grow: 0"]),
@@ -66,19 +70,34 @@ export function filterRow(
   );
   const open = [
     `${FILTER_LINE + 2 * FILTER_PAD}rem`,
-    ...filterBreaks(sizes, aside).map(
+    ...filterBreaks(sizes, fitAside + FILTER_ASIDE).map(
       (width) => `clamp(0rem, (${width}rem - 100cqw) * 1000, ${FILTER_LINE + FILTER_GAP}rem)`,
     ),
   ].join(" + ");
   const row = [
     `--filter-gap: ${FILTER_GAP}rem`,
-    `--filter-aside: ${aside}rem`,
-    `--filter-clear: ${tools * FILTER_ASIDE}rem`,
-    `--filter-toggle: ${(tools - 1) * FILTER_ASIDE}rem`,
+    `--filter-tools-fit: ${icons * FILTER_ASIDE}rem`,
+    `--filter-tools-more: ${(icons + 1) * FILTER_ASIDE}rem`,
+    `--filter-clear-space: ${clearSpace}rem`,
     `--filter-label: ${FILTER_LABEL}rem`,
     `--filter-line: ${FILTER_LINE}rem`,
     `--filter-pad: ${FILTER_PAD}rem`,
     `--filter-open: calc(${open})`,
   ].join("; ");
-  return { row, slots };
+  return { row, slots, fit: sizes.length > 1 ? at[at.length - 1] + fitAside : 0 };
+}
+
+export function watchFit(row: Element, fit: number) {
+  observeSize(row, (entry, rem) => {
+    const width = entry.contentBoxSize?.[0]?.inlineSize ?? (entry.target as HTMLElement).clientWidth;
+    entry.target.toggleAttribute("data-fits", width / rem >= fit);
+  });
+}
+
+export function fits(node: HTMLElement, fit: number) {
+  if (fit > 0) watchFit(node, fit);
+  return {
+    update: (next: number) => (next > 0 ? watchFit(node, next) : unobserveSize(node)),
+    destroy: () => unobserveSize(node)
+  };
 }

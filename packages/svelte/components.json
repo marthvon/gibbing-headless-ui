@@ -1,0 +1,3126 @@
+{
+  "package": "@marthvon/gibbing-headless-ui-svelte",
+  "framework": "svelte",
+  "conventions": [
+    "**Styles come from frontail.** Import `@marthvon/frontail/components/index.css` once, or import only the stylesheets each component lists under **Stylesheet**, including the ones it depends on. Without them the components render unstyled.",
+    "**Import frontail's utilities too.** Many components rely on its utility stylesheets (`utilities/layouts.css`, `modal.css`, `3d.css`, `animate.css`, `layers.css`, plus `theme/keyframes.css`). Import them all once next to the component stylesheets.",
+    "**Class props are for containers only.** `className` styles the root and `xxxClass` props style named inner boxes. Text pieces are never styled by a class prop; replace them with a render prop / snippet instead.",
+    "**`Content` props take a string or a render function.** Props typed `Content` (or `Content<[args]>`) accept a plain string, which keeps the default element and only changes its text, or a function / snippet, which replaces the element entirely and receives the listed arguments.",
+    "**State is controlled by you.** Components report changes through callbacks and render what you pass back. Select, FilterRow, SortHeading and ResourceTable keep no copy of `value`, `values`, `query`, `sorts`, `page` or `selected`; update your state in the callback or nothing changes.",
+    "**Ids.** `formId` prefixes generated ids so labels and error messages stay linked; every instance still gets a unique id, so repeating the same `label` is safe.",
+    "**Presets are const enums.** `DropdownPreset`, `PanelPreset`, `CardPreset` and `Interact` come from the `presets.client` module. Each preset is a set of class names, so pass the enum member, never a string you typed yourself.",
+    "**Layering.** Popovers use `--z-popover` (50), their click-out backdrops `--z-backdrop` (40) and sticky headers `--z-sticky` (2). The `Z` export from `utils` holds the same scale.",
+    "**`zIndex` for layers opened from other layers.** Dropdown, Select, DatePickerInput, PhoneField, Tooltip, ResourceTable and TextEditor take `zIndex`, which sets the popups and backdrop of that component (and of everything rendered inside it) to that value. When a component opens from inside a dialog or another popup, pass the opener's z-index plus one, e.g. `zIndex={Z.modal + 1}` inside a dialog at `Z.modal`, and keep counting up for each deeper level, so the newest layer is always on top. Never put a dropdown inside a parent with `transform`, `filter`, `opacity` below 1 or its own `z-index`, because that parent traps the popover underneath later content.",
+    "**Optional peers.** TextEditor needs `@codemirror/commands`, `@codemirror/state`, `@codemirror/view` and `markdown-it`; QrCode needs `qrcode-generator`. Install them only if you use those components.",
+    "Components use Svelte 5 in legacy mode (`export let`), so they work in both runes and legacy apps.",
+    "Callbacks are lowercase props (`onchange`, `ontoggle`, `onselect`). A few older components dispatch component events instead; those are listed under **Events** and are used as `on:change` and so on.",
+    "Render props are snippets. Declare `{#snippet option(choice)}…{/snippet}` inside the component tag to pass it as the prop of the same name, or pass a snippet defined elsewhere as `option={mySnippet}`.",
+    "Components with **Slots** take legacy slots: the default slot is the tag's children, and a named slot is filled with `<svelte:fragment slot=\"image\">…</svelte:fragment>`.",
+    "Props listed under **Bindable**, plus `value` on TextboxB and TextboxC, work with `bind:`. Everything else is one-way; use the callbacks."
+  ],
+  "choosing": [
+    {
+      "need": "A text field",
+      "use": "TextboxB (outlined, label floats onto the border) for most forms; TextboxC (outlined, label always on the border, allows a placeholder); TextboxA (filled, label below the box). All three become a textarea when `height` is above 3.25 (rem). TextboxB and C reserve a line for the error so the form never jumps."
+    },
+    {
+      "need": "A password, phone number or code",
+      "use": "PasswordField (`variant` a/b/c picks the textbox; or set `secret` on any Textbox), PhoneField (country dial code + number, stores digits only; pass a Textbox as `field` to match your form), Digitbox (one box per character, for OTP codes)."
+    },
+    {
+      "need": "Long formatted text",
+      "use": "TextEditor: a markdown editor with a toolbar and insertable `{{variables}}`."
+    },
+    {
+      "need": "Pick from a list",
+      "use": "Select for a form value (single or `multiple`). Dropdown only for a free-form menu of your own markup (actions, account menu); it has no value."
+    },
+    {
+      "need": "A date",
+      "use": "DatePickerInput for a form field that opens a calendar; DatePicker for an always-visible calendar."
+    },
+    {
+      "need": "A number in a range",
+      "use": "Slider for one value, DualSlider for a min/max pair. Both snap to `step` and keep their labels a fixed width."
+    },
+    {
+      "need": "An on/off switch",
+      "use": "Toggle."
+    },
+    {
+      "need": "Help text under a field",
+      "use": "FieldGuide: clips long text to `limit` and shows See more / See less only when it overflows."
+    },
+    {
+      "need": "A list of records",
+      "use": "ResourceTable (sorting, paging, selection, row actions, stacks into cards on narrow screens). Put a FilterRow above it for search and filters, and render SortHeading in its `sortHeading` slot."
+    },
+    {
+      "need": "Uploading files",
+      "use": "UploadPanel: drop zone, queue with progress, retry. You supply the actual `upload(file, progress)` function."
+    },
+    {
+      "need": "Previewing a file",
+      "use": "FileViewer: images, video, PDF, HTML, plain text, or a fallback card."
+    },
+    {
+      "need": "Images and media",
+      "use": "ImageCarousel (3D carousel with autoplay), GridView (masonry of your own tiles), SmartGridView (masonry that places tiles by aspect ratio and supports infinite scroll)."
+    },
+    {
+      "need": "Interactive cards",
+      "use": "CardA flips to its back on hover/click; CardB slides a gradient panel over an image."
+    },
+    {
+      "need": "A resizable drawer",
+      "use": "Panel: a side or bottom sheet the user drags to resize, optionally snapping to set sizes."
+    },
+    {
+      "need": "A hint on hover or focus",
+      "use": "Tooltip: wraps a trigger and shows `content` (a string or snippet) beside it on hover and keyboard focus. Use Dropdown instead when the popup must open on click."
+    },
+    {
+      "need": "Navigation and misc",
+      "use": "Breadcrumbs for a page trail; QrCode to render a scannable code as SVG."
+    }
+  ],
+  "recipes": [
+    {
+      "title": "Searchable, sortable, paged table",
+      "code": "<FilterRow id=\"people-search\" {query} oninput={(text) => (query = text)} clearable={!!query} onclear={() => (query = \"\")} placeholder=\"Search people\" />\n<ResourceTable\n  columns={[{ key: \"name\", label: \"Name\" }, { key: \"joined\", label: \"Joined\", date: true }]}\n  {rows}\n  {sorts}\n  sortable={new Set([\"name\", \"joined\"])}\n  page={page} pages={pageCount} from={page * 10} to={page * 10 + rows.length} total={total} onpage={(next) => (page = next)}\n>\n  {#snippet sortHeading(key, label)}<SortHeading {key} {label} {sorts} onsort={(k, d) => (sorts = headerSort(sorts, k, d))} />{/snippet}\n</ResourceTable>"
+    },
+    {
+      "title": "A filter control inside FilterRow",
+      "code": "<FilterRow id=\"people\" {query} oninput={(text) => (query = text)} sizes={[FILTER_SIZE]} applied={!!role}>\n  {#snippet controls(slot)}\n    <Select label=\"Role\" className=\"filter-slot\" style={slot(0)} options={roles} value={role} clearable onchange={(value) => (role = value)} />\n  {/snippet}\n</FilterRow>"
+    }
+  ],
+  "components": [
+    {
+      "name": "Breadcrumbs",
+      "summary": "A trail of links to the current page. The last crumb is the current page and is not a link.",
+      "css": "`breadcrumbs.css`",
+      "props": [
+        {
+          "name": "crumbs",
+          "type": "readonly Crumb[]",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "default": "\"Breadcrumb\""
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "listClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "itemClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "separator",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "homeIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "crumb",
+          "type": "Snippet<[Crumb, boolean]> | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<Breadcrumbs separator=\"/\" crumbs={[{ label: \"Home\", href: \"/\", home: true }, { label: \"Clients\", href: \"/clients\" }, { label: \"Ada Lovelace\" }]} />",
+      "notes": [
+        "`crumbs` is `{ label, href?, home? }[]`; `home: true` shows `homeIcon` before that crumb.",
+        "`separator` and `homeIcon` accept text (\"/\", \"⌂\") or your own element."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Breadcrumbs"
+    },
+    {
+      "name": "CardA",
+      "summary": "A card that flips from an image to a back face on hover, click, or both.",
+      "css": "frontail utilities `3d.css`, `layouts.css` and `modal.css`",
+      "props": [
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.HOVER"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "image",
+        "default"
+      ],
+      "example": "<div class=\"h-40\">\n  <CardA interact={Interact.CLICK} className=\"h-full\" cardClass=\"rounded-xl\">\n    <svelte:fragment slot=\"image\"><img src=\"/cover.jpg\" alt=\"\" class=\"h-full w-full rounded-xl object-cover\" /></svelte:fragment>\n    <div class=\"flex h-full items-center justify-center rounded-xl bg-indigo-900 p-4 text-white\">Back of the card</div>\n  </CardA>\n</div>",
+      "notes": [
+        "Give the parent a fixed height; the card fills it.",
+        "`interact` takes `Interact.HOVER`, `Interact.CLICK` or `Interact.HOVER_N_CLICK`.",
+        "The front goes in the `image` slot and the back in the default slot."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/CardA"
+    },
+    {
+      "name": "CardB",
+      "summary": "An image card that slides a gradient panel with your content over it on hover.",
+      "css": "frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "from_color",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "preset",
+          "type": "CardPreset",
+          "required": true
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.HOVER"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "image",
+        "default"
+      ],
+      "example": "<CardB from_color=\"from-indigo-900\" preset={CardPreset.TO_RIGHT} className=\"h-40 rounded-xl\">\n  <svelte:fragment slot=\"image\"><img src=\"/cover.jpg\" alt=\"\" class=\"h-full w-full object-cover\" /></svelte:fragment>\n  <p class=\"p-4 text-white\">Revealed on hover</p>\n</CardB>",
+      "notes": [
+        "`from_color` is the Tailwind gradient start, e.g. `from-indigo-900`.",
+        "`preset` is a `CardPreset` member: TO_RIGHT, TO_LEFT, TO_TOP, TO_BOTTOM, or the `_AT_HALF` versions that stop half way.",
+        "The image goes in the `image` slot and the overlay content in the default slot."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/CardB"
+    },
+    {
+      "name": "DatePicker",
+      "summary": "An always-visible month calendar. Values are ISO dates (`YYYY-MM-DD`).",
+      "css": "`datepicker.css`",
+      "props": [
+        {
+          "name": "value",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "locale",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "headingClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "gridClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "cellClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "weekdayClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "oninput",
+          "type": "((iso: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onchange",
+          "type": "((iso: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "prev",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "heading",
+          "type": "Snippet<[HeadingCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "weekday",
+          "type": "Snippet<[WeekdayCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "day",
+          "type": "Snippet<[DayCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "dayMini",
+          "type": "Snippet<[DayCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<DatePicker label=\"Due date\" formId=\"task\" value={due} onchange={(iso) => (due = iso)} />",
+      "notes": [
+        "`locale` sets month and weekday names, e.g. `fr-FR`.",
+        "Below 240px wide it switches to compact day labels; `dayMini` customises those.",
+        "`day`, `weekday` and `heading` receive `DayCtx`, `WeekdayCtx` and `HeadingCtx` and replace those cells.",
+        "`onChange` fires when a day is picked."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/DatePicker"
+    },
+    {
+      "name": "DatePickerInput",
+      "summary": "A text box that opens a DatePicker in a dropdown. Typing a valid `YYYY-MM-DD` also works; an impossible date reverts on blur.",
+      "css": "`datepicker.css`, `dropdown.css`, the stylesheet of the text box (`textbox.a.css` by default) and frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "value",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "locale",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "headingClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "gridClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "cellClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "weekdayClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "pickerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "innerModalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.BOTTOM"
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.CLICK"
+        },
+        {
+          "name": "clickOut",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "oninput",
+          "type": "((iso: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onchange",
+          "type": "((iso: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "prev",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "heading",
+          "type": "Snippet<[HeadingCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "weekday",
+          "type": "Snippet<[WeekdayCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "day",
+          "type": "Snippet<[DayCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "dayMini",
+          "type": "Snippet<[DayCtx]> | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "field",
+          "type": "Snippet<[DateInput]> | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<DatePickerInput label=\"Start date\" formId=\"booking\" value={start} onchange={(iso) => (start = iso)} />\n<DatePickerInput label=\"Due date\" formId=\"task\" value={due} onchange={(iso) => (due = iso)}>\n  {#snippet field(input)}<TextboxB {...input} />{/snippet}\n</DatePickerInput>",
+      "notes": [
+        "The text box is TextboxA by default. Pass `field` to use any Textbox instead: spread the props it receives (`formId`, `label`, `value`, `maxLength`, `guard` and the input/blur handlers) onto it, exactly like PhoneField's `field`.",
+        "`preset={DropdownPreset.TOP}` opens the calendar above the box.",
+        "Values are ISO dates; `onChange` fires when a day is picked or a valid date is typed."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/DatePickerInput"
+    },
+    {
+      "name": "Digitbox",
+      "summary": "One box per character for verification codes. Focus moves to the next box as the user types.",
+      "css": "`digitbox.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "digits",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "isNumeric",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "digitClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | undefined",
+          "required": false,
+          "bindable": true
+        }
+      ],
+      "events": [
+        "input",
+        "change"
+      ],
+      "slots": [],
+      "example": "<form><Digitbox label=\"Code\" formId=\"verify\" name=\"code\" digits={6} on:change={() => submit()} /></form>",
+      "notes": [
+        "With `name`, the combined value is submitted once under that name through a hidden input.",
+        "`isNumeric={false}` allows letters.",
+        "Boxes shrink to fit a narrow container."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Digitbox"
+    },
+    {
+      "name": "Dropdown",
+      "summary": "A trigger that opens your own menu markup. It holds no value; use Select for form values.",
+      "css": "`dropdown.css` and frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "innerModalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "wrapperClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": true
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": true
+        },
+        {
+          "name": "clickOut",
+          "type": "boolean | undefined",
+          "required": false
+        },
+        {
+          "name": "menu",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<Dropdown preset={DropdownPreset.BOTTOM} interact={Interact.CLICK} clickOut innerModalClass=\"border border-zinc-200 p-1\">\n  {#snippet menu()}\n    {#each [\"Profile\", \"Sign out\"] as item (item)}<button class=\"block w-full px-3 py-1.5 text-left hover:bg-zinc-100\">{item}</button>{/each}\n  {/snippet}\n  <span class=\"field-box\">Account</span>\n</Dropdown>",
+      "notes": [
+        "`preset` picks the direction (DropdownPreset.BOTTOM, TOP, LEFT, RIGHT); `interact` picks hover, click or both.",
+        "`clickOut` adds a backdrop that closes the menu on an outside click (click mode only).",
+        "Style the menu box with `innerModalClass`.",
+        "Pass the menu as a `menu` snippet; the tag's children are the trigger."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Dropdown"
+    },
+    {
+      "name": "DualSlider",
+      "summary": "A range slider with a minimum and a maximum thumb.",
+      "css": "`slider.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "step",
+          "type": "number",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "trackClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "thumbClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "backtrackClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "labelPos",
+          "type": "\"i\" | \"o\" | undefined",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "labelParse",
+          "type": "((n: number) => string) | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | undefined",
+          "required": false,
+          "bindable": true
+        }
+      ],
+      "events": [
+        "input",
+        "change"
+      ],
+      "slots": [],
+      "example": "<DualSlider label=\"Price\" formId=\"filters\" min={0} max={500} step={10} labelPos=\"o\" labelParse={(n) => `$${n}`} />",
+      "notes": [
+        "Values snap to `min + n × step` (default step 1) and are rounded to the step's decimals.",
+        "`labelPos=\"o\"` shows the values outside the bar in fixed-width labels; `\"i\"` shows them inside the thumbs.",
+        "`labelParse` formats the shown value, e.g. `(n) => `$${n}``.",
+        "The current value is `\"min,max\"` on the hidden input (the ref).",
+        "`on:change` receives that string when a drag ends."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/DualSlider"
+    },
+    {
+      "name": "FieldGuide",
+      "summary": "Help text for a field. Text taller than `limit` is clipped with a fade and an animated See more / See less toggle; shorter text shows in full with no toggle.",
+      "css": "`field_guide.css`",
+      "props": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "id",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "required": false,
+          "default": "3"
+        },
+        {
+          "name": "body",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "expand",
+          "type": "Content<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "collapse",
+          "type": "Content<[string]> | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<FieldGuide text=\"We send a confirmation link to this address. It expires after 24 hours.\" limit={2} expand=\"Read more\" />",
+      "notes": [
+        "`limit` is in rem (default 3, about three lines).",
+        "Overflow is measured by one shared ResizeObserver, so it is cheap to use many."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/FieldGuide"
+    },
+    {
+      "name": "FileViewer",
+      "summary": "Previews a file by type: image, video, PDF, HTML, text, or a fallback card for anything else.",
+      "css": "`file_viewer.css`",
+      "props": [
+        {
+          "name": "src",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "kind",
+          "type": "FileKind | undefined",
+          "required": false
+        },
+        {
+          "name": "poster",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "content",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "fitWidth",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "autoplay",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "mediaClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "posterClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "frameClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "textClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "fallback",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "failure",
+          "type": "Content<[FileError]> | undefined",
+          "required": false
+        },
+        {
+          "name": "soundOnly",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "prev",
+          "type": "Content<[() => void]> | undefined",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "Content<[() => void]> | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "onprev",
+          "type": "(() => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onnext",
+          "type": "(() => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onerror",
+          "type": "((error: FileError) => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<div class=\"h-80\"><FileViewer src={file.url} name={file.name} type={file.mime} fallback=\"No preview for this file type.\" /></div>",
+      "notes": [
+        "The kind is inferred from `type` (MIME) and `name`; pass `kind` to force it.",
+        "Pass `content` to show text you already have without fetching `src`.",
+        "`prev`/`next` with `onPrev`/`onNext` add arrows for browsing a list.",
+        "Give it a sized parent; it fills it."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/FileViewer"
+    },
+    {
+      "name": "FilterRow",
+      "summary": "A search box plus filter controls that share one row and wrap behind a \"More filters\" toggle when space runs out.",
+      "css": "`filter_row.css`, `field.css`, plus `select.css` for Selects in the row",
+      "props": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "default": "\"Search\""
+        },
+        {
+          "name": "toggleLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"More filters\""
+        },
+        {
+          "name": "sizes",
+          "type": "readonly FilterSize[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "searchSize",
+          "type": "FilterSize",
+          "required": false,
+          "default": "SEARCH_SIZE"
+        },
+        {
+          "name": "clearSize",
+          "type": "FilterSize",
+          "required": false,
+          "default": "CLEAR_SIZE"
+        },
+        {
+          "name": "applied",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "clearable",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "refreshing",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "flowClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "slotClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "searchClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "clear",
+          "type": "Content<[() => void]> | undefined",
+          "required": false
+        },
+        {
+          "name": "toggle",
+          "type": "Content<[string, boolean]> | undefined",
+          "required": false
+        },
+        {
+          "name": "refresh",
+          "type": "Content<[() => void, boolean]> | undefined",
+          "required": false
+        },
+        {
+          "name": "controls",
+          "type": "Snippet<[(index: number) => string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "oninput",
+          "type": "(text: string) => void",
+          "required": true
+        },
+        {
+          "name": "onclear",
+          "type": "(() => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onrefresh",
+          "type": "(() => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<FilterRow id=\"people\" {query} oninput={(text) => (query = text)} sizes={[FILTER_SIZE]} applied={!!role} clearable={!!query || !!role}\n  onclear={() => { query = \"\"; role = \"\"; }}>\n  {#snippet controls(slot)}\n    <Select label=\"Role\" className=\"filter-slot\" style={slot(0)} options={roles} value={role} clearable onchange={(value) => (role = value)} />\n  {/snippet}\n</FilterRow>",
+      "notes": [
+        "`sizes` describes each control in `controls` (use the presets in the `filters` module); `controls(slot)` must give control `i` the class `filter-slot` and the style `slot(i)`. Without both the controls overlap the toggles.",
+        "The More filters toggle only appears when the controls wrap past one line; FilterRow knows the width at which that happens from `sizes`, so it costs no layout measurement. A custom `toggle` should keep the `filter-toggle` class to get this.",
+        "`applied` highlights the toggle; `clearable` + `onClear` shows a Clear button; `onRefresh` adds a refresh button and `refreshing` spins it.",
+        "`id` must be unique on the page."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/FilterRow"
+    },
+    {
+      "name": "GridView",
+      "summary": "A masonry grid of your own tiles, kept in order across columns.",
+      "css": "`grid_view.css`",
+      "props": [
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "innerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "childrens",
+          "type": "[string, Snippet][]",
+          "required": true
+        },
+        {
+          "name": "columns",
+          "type": "number | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "{#snippet tile()}<div class=\"h-24 rounded-lg bg-indigo-200\"></div>{/snippet}\n<GridView className=\"h-96\" cardClass=\"rounded-lg\" childrens={[[\"a\", tile], [\"b\", tile]]} />",
+      "notes": [
+        "Columns follow the container width (1 below 28rem, up to 7 when very wide); `columns` forces a count.",
+        "`childrens` is an array of `[key, snippet]`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/GridView"
+    },
+    {
+      "name": "ImageCarousel",
+      "summary": "A 3D carousel with arrows, optional autoplay, dot indicators and a progress loader.",
+      "css": "`image_carousel.css`, plus `linear_loader.css` for `loader`, and frontail utilities `3d.css`, `layouts.css` and `modal.css`",
+      "props": [
+        {
+          "name": "images",
+          "type": "[string, Snippet][]",
+          "required": true
+        },
+        {
+          "name": "timeout",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "bg_img_opacity",
+          "type": "",
+          "required": false,
+          "default": "0.5"
+        },
+        {
+          "name": "cursor_color",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "indicators",
+          "type": "{ indicated_color: string; dormant_color: string } | undefined",
+          "required": false
+        },
+        {
+          "name": "loader",
+          "type": "CarouselLoader | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "{#snippet first()}<img src=\"/a.jpg\" alt=\"\" class=\"h-full rounded-xl\" />{/snippet}\n{#snippet second()}<img src=\"/b.jpg\" alt=\"\" class=\"h-full rounded-xl\" />{/snippet}\n<div class=\"h-56\"><ImageCarousel timeout={4} className=\"h-full\" cursor_color=\"text-zinc-700\" indicators={{ indicated_color: \"bg-indigo-600\", dormant_color: \"bg-zinc-300\" }} images={[[\"a\", first], [\"b\", second]]} /></div>",
+      "notes": [
+        "Slides need an intrinsic width (an image, or a box like `w-96 max-w-full`); `w-full` slides collapse.",
+        "Side slides are pushed about 250px outward, so give it a full-width row, not a narrow column.",
+        "`timeout` (seconds) enables autoplay; `cursor_color` enables the arrows and colours them.",
+        "`loader` paints a bar that fills over `timeout` seconds and restarts on every slide change; `fill_color` colours the bar and `empty_color` the track. Clicking it pauses or resumes autoplay."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/ImageCarousel"
+    },
+    {
+      "name": "Panel",
+      "summary": "A drawer over your content that the user drags to resize, from the top, bottom, left or right.",
+      "css": "`panel.css` and frontail utilities `layouts.css`",
+      "props": [
+        {
+          "name": "preset",
+          "type": "PanelPreset",
+          "required": true
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "dragClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "default_ratio",
+          "type": "number | string | undefined",
+          "required": false
+        },
+        {
+          "name": "ratio",
+          "type": "(number | (\"<\" | \"<=\") | \"x\")[]",
+          "required": false,
+          "default": "[0, \"<=\", \"x\", \"<=\", 1.0]"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default",
+        "modal"
+      ],
+      "example": "<div class=\"relative h-96\">\n  <Panel preset={PanelPreset.BOTTOM} default_ratio=\"40%\" modalClass=\"bg-white\">\n    <main class=\"h-full p-4\">Main content</main>\n    <svelte:fragment slot=\"modal\"><p class=\"p-4\">Details</p></svelte:fragment>\n  </Panel>\n</div>",
+      "notes": [
+        "Put it in a positioned parent with a fixed height; it fills it.",
+        "`default_ratio` is a CSS size (`\"40%\"`) or the index of a lock point in `ratio`.",
+        "`ratio` alternates bounds, comparators and lock points: `[0, \"<=\", 0.25, \"<\", 0.5, \"<=\", 0.75, \"<=\", 1]` snaps to 25% below half and 75% above it; `\"x\"` as a lock point means stay where dropped.",
+        "Main content is the default slot; the drawer content is the `modal` slot."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Panel"
+    },
+    {
+      "name": "PasswordField",
+      "summary": "A password field: a thin wrapper that renders TextboxA, B or C (`variant`) with `secret` on, password autocomplete and a 64-character limit.",
+      "css": "the chosen textbox's stylesheet (`textbox.a.css` or `textbox.b.css`) plus `textbox.reveal.css`",
+      "props": [
+        {
+          "name": "variant",
+          "type": "\"a\" | \"b\" | \"c\"",
+          "required": false,
+          "default": "\"a\""
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false,
+          "default": "64"
+        },
+        {
+          "name": "autocomplete",
+          "type": "\"current-password\" | \"new-password\"",
+          "required": false,
+          "default": "\"current-password\""
+        },
+        {
+          "name": "onchange",
+          "type": "((value: string) => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<PasswordField variant=\"b\" label=\"Password\" formId=\"signup\" autocomplete=\"new-password\" value={password} error={issue} onchange={(value) => (password = value)} />",
+      "notes": [
+        "Everything else is passed to the textbox, so its props (`error`, `formId`, `showIcon`, `hideIcon`, `revealed`, `boxClass`, …) work here too.",
+        "Use `autoComplete=\"new-password\"` (Svelte: `autocomplete`) on sign-up and change-password forms.",
+        "For a show/hide toggle on any other field, set `secret` on the textbox directly.",
+        "`onchange` receives the new value; `bind:revealed` tracks whether it is shown."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/PasswordField"
+    },
+    {
+      "name": "PhoneField",
+      "summary": "A country dial-code picker with flags plus a number box. The value is digits only, dial code first (`61412345678`).",
+      "css": "`phone_field.css`, `field.css`, `select.css`, `dropdown.css`, plus the stylesheet of any Textbox passed as `field`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false,
+          "default": "16"
+        },
+        {
+          "name": "countries",
+          "type": "readonly DialCountry[]",
+          "required": false,
+          "default": "DIAL_COUNTRIES"
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.TOP"
+        },
+        {
+          "name": "codeLabel",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "format",
+          "type": "(country: DialCountry) => string",
+          "required": false,
+          "default": "dialLabel"
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null | undefined",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "rowClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "dialClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "triggerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "optionClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "numberClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "inputClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "flag",
+          "type": "Snippet<[DialCountry]> | undefined",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "field",
+          "type": "Snippet<[PhoneInput]> | undefined",
+          "required": false
+        },
+        {
+          "name": "onchange",
+          "type": "((value: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onblur",
+          "type": "(() => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<PhoneField label=\"Phone\" formId=\"contact\" value={phone} error={phoneIssue(phone)} onchange={(value) => (phone = value)} />\n<PhoneField label=\"Mobile\" formId=\"contact\" value={mobile} onchange={(value) => (mobile = value)}>\n  {#snippet field(input)}<TextboxB {...input} />{/snippet}\n</PhoneField>",
+      "notes": [
+        "By default the number box is a plain rounded input with the label above and the error below.",
+        "Pass `field` to render the number box with any Textbox instead: spread the props it receives (`label`, `value`, `error`, `maxLength`, `mode`, autocomplete and the input/blur handlers) onto the textbox. The textbox then shows the label and error, and the country picker restyles itself to match TextboxA, B or C.",
+        "The country menu opens above by default; pass `preset={DropdownPreset.BOTTOM}` near the top of a page.",
+        "Validate with `phoneIssue(value)` from the `phone` module; `countries` limits or reorders the list."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/PhoneField"
+    },
+    {
+      "name": "QrCode",
+      "summary": "Renders text or a URL as a scalable QR code SVG.",
+      "css": "`qr_code.css`",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "level",
+          "type": "QrLevel",
+          "required": false,
+          "default": "\"M\""
+        },
+        {
+          "name": "quiet",
+          "type": "number",
+          "required": false,
+          "default": "4"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<QrCode value=\"https://example.com/invite/42\" label=\"Invite link\" className=\"w-40\" />",
+      "notes": [
+        "Needs the `qrcode-generator` peer dependency.",
+        "Size it with `className` (e.g. `w-40`).",
+        "`level` is error correction (L, M, Q, H); `quiet` is the margin in modules."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/QrCode"
+    },
+    {
+      "name": "ResourceTable",
+      "summary": "A data table with sorting, paging, selection, status pills and row actions. Below a container width it turns each row into a card.",
+      "css": "`resource_table.css`, plus `sort_heading.css` when you render SortHeading",
+      "props": [
+        {
+          "name": "columns",
+          "type": "readonly TableColumn[]",
+          "required": true
+        },
+        {
+          "name": "rows",
+          "type": "readonly Row[]",
+          "required": true
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "cell",
+          "type": "((row: Row, key: string) => string) | undefined",
+          "required": false
+        },
+        {
+          "name": "cellNote",
+          "type": "((row: Row, key: string) => string | null) | undefined",
+          "required": false
+        },
+        {
+          "name": "cellClass",
+          "type": "((row: Row, key: string) => string | null) | undefined",
+          "required": false
+        },
+        {
+          "name": "badge",
+          "type": "((row: Row, key: string) => string | null) | undefined",
+          "required": false
+        },
+        {
+          "name": "rowClass",
+          "type": "((row: Row) => string | null) | undefined",
+          "required": false
+        },
+        {
+          "name": "rowEdge",
+          "type": "((row: Row) => { tone: string; label: string } | null) | undefined",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "((row: Row) => RowStatus) | undefined",
+          "required": false
+        },
+        {
+          "name": "statusKey",
+          "type": "string",
+          "required": false,
+          "default": "\"status\""
+        },
+        {
+          "name": "statusLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Status\""
+        },
+        {
+          "name": "faded",
+          "type": "((row: Row) => boolean) | undefined",
+          "required": false
+        },
+        {
+          "name": "actions",
+          "type": "((row: Row) => TableAction[]) | undefined",
+          "required": false
+        },
+        {
+          "name": "menu",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "onopen",
+          "type": "((row: Row) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "sorts",
+          "type": "readonly Sort[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "sortable",
+          "type": "ReadonlySet<string>",
+          "required": false,
+          "default": "new Set()"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "pages",
+          "type": "number",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "from",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "to",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "pageSize",
+          "type": "number",
+          "required": false,
+          "default": "10"
+        },
+        {
+          "name": "pageSizes",
+          "type": "readonly number[]",
+          "required": false,
+          "default": "PAGE_SIZES"
+        },
+        {
+          "name": "onpage",
+          "type": "((page: number) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onpagesize",
+          "type": "((size: number) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "hasNext",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "selectable",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "selected",
+          "type": "ReadonlySet<string>",
+          "required": false,
+          "default": "new Set()"
+        },
+        {
+          "name": "onselect",
+          "type": "((id: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onselectpage",
+          "type": "((on: boolean) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "fill",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "stackAt",
+          "type": "StackWidth | undefined",
+          "required": false
+        },
+        {
+          "name": "actionsLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Actions\""
+        },
+        {
+          "name": "selectPageLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Select every row on this page\""
+        },
+        {
+          "name": "selectRowLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Select this row\""
+        },
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "scrollClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "tableClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "headClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "headRowClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "headingClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "checkboxClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "actionsClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "menuButtonClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "actionClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "footerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "pagerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "sizeClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "pageButtonClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "content",
+          "type": "Snippet<[Row, string, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "menuIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "empty",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "sortBy",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "range",
+          "type": "Snippet<[number, number, number]> | undefined",
+          "required": false
+        },
+        {
+          "name": "pageText",
+          "type": "Snippet<[number, number]> | undefined",
+          "required": false
+        },
+        {
+          "name": "sizeCaption",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "previous",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "next",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "sortHeading",
+          "type": "Snippet<[string, string]> | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<ResourceTable\n  stackAt={40}\n  columns={[{ key: \"name\", label: \"Name\" }, { key: \"joined\", label: \"Joined\", date: true }]}\n  {rows}\n  status={(row) => ({ label: row.active ? \"Active\" : \"Away\", tone: row.active ? \"bg-emerald-100 text-emerald-800\" : \"bg-zinc-100 text-zinc-600\" })}\n  menu\n  actions={(row) => [{ id: \"edit\", label: \"Edit\", run: () => edit(row) }, { id: \"delete\", label: \"Delete\", tone: \"danger\", run: () => remove(row) }]}\n  {sorts} sortable={new Set([\"name\", \"joined\"])}\n  selectable {selected} onselect={toggleRow}\n  {page} {pages} {from} to={from + rows.length} {total} {pageSize} onpage={(next) => (page = next)} onpagesize={(size) => (pageSize = size)}\n>\n  {#snippet sortHeading(key, label)}<SortHeading {key} {label} {sorts} onsort={(k, d) => (sorts = headerSort(sorts, k, d))} />{/snippet}\n</ResourceTable>",
+      "notes": [
+        "Rows need an `id` string. `columns` is `{ key, label, date? }[]`; cells show `row[key]` unless `cell` returns other text.",
+        "Fully controlled: pass `sorts`, `page`, `pages`, `from`, `to`, `total`, `pageSize` and `selected`, and update them in the callbacks. Do the sorting, filtering and slicing yourself.",
+        "`stackAt` is the container width in rem below which rows become cards (24 to 112 in steps of 8). The default is at least 80, so tables in narrow layouts stack; lower it to keep a table.",
+        "`actions(row)` returns `{ id, label, tone?, run }[]`. Add `menu` to show them behind a ⋯ button; without it they render as inline links, which suits one or two actions.",
+        "`status(row)` adds a pill column; `busy` shows `loading`; no rows shows `empty`.",
+        "`fill` makes the table fill a fixed-height parent with a sticky header."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/ResourceTable"
+    },
+    {
+      "name": "Select",
+      "summary": "A labelled select with a custom menu, single or multiple, with an optional clear option and error line.",
+      "css": "`select.css`, `field.css`, `dropdown.css` and frontail utilities `modal.css` and `layouts.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "options",
+          "type": "readonly SelectOption[]",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "values",
+          "type": "readonly string[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "multiple",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "summary",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "default": "\"—\""
+        },
+        {
+          "name": "clearable",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "labelled",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "error",
+          "type": "string | null | undefined",
+          "required": false
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.BOTTOM"
+        },
+        {
+          "name": "interact",
+          "type": "Interact",
+          "required": false,
+          "default": "Interact.CLICK"
+        },
+        {
+          "name": "style",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "dropdownClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "triggerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "wrapperClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "optionClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "trigger",
+          "type": "Snippet<[SelectOption | undefined, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "option",
+          "type": "Snippet<[SelectOption]> | undefined",
+          "required": false
+        },
+        {
+          "name": "tick",
+          "type": "Content<[boolean]> | undefined",
+          "required": false
+        },
+        {
+          "name": "chevron",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "onchange",
+          "type": "((value: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "ontoggle",
+          "type": "((value: string) => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<Select label=\"Fruit\" options={[{ value: \"apple\", label: \"Apple\" }, { value: \"pear\", label: \"Pear\" }]} value={fruit} placeholder=\"Pick one\" clearable onchange={(value) => (fruit = value)} />",
+      "notes": [
+        "Single: `value` + `onChange`. Multiple: `multiple`, `values` + `onToggle(value)`, and `summary` for the closed text (e.g. \"2 selected\").",
+        "`clearable` adds a first option that sets the value to \"\" and shows `placeholder`.",
+        "`option` renders each option and the selected value; `chevron` replaces the arrow; `labelled={false}` hides the label and error.",
+        "`preset={DropdownPreset.TOP}` opens the menu above."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Select"
+    },
+    {
+      "name": "Slider",
+      "summary": "A single-value slider built on a native range input.",
+      "css": "`slider.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "step",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "defaultValue",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "trackClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "thumbClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "backtrackClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "labelPos",
+          "type": "\"l\" | \"i\" | \"r\" | undefined",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "labelParse",
+          "type": "((n: number) => string) | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | undefined",
+          "required": false
+        }
+      ],
+      "events": [
+        "input",
+        "change"
+      ],
+      "slots": [],
+      "example": "<Slider label=\"Volume\" formId=\"audio\" max={100} defaultValue={40} labelPos=\"r\" on:change={(event) => (volume = Number(event.detail.currentTarget.value))} />",
+      "notes": [
+        "`labelPos` is `\"l\"`, `\"r\"` (fixed-width label beside the bar) or `\"i\"` (inside the thumb).",
+        "`defaultValue` sets the start; it is uncontrolled after that, so read changes from the input/change events.",
+        "`labelParse` formats the label."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Slider"
+    },
+    {
+      "name": "SmartGridView",
+      "summary": "A masonry grid that places tiles by their aspect ratio to keep columns even, with infinite scroll.",
+      "css": "`smart_grid_view.css`",
+      "props": [
+        {
+          "name": "images",
+          "type": "SmartGridImg",
+          "required": true
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "innerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "cardClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "template",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "columns",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "threshold",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "onScrollEnd",
+          "type": "(() => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "{#snippet tile()}<div class=\"h-24 rounded-lg bg-sky-200\"></div>{/snippet}\n<SmartGridView className=\"h-96\" columns={3} images={[[\"a\", 1, tile], [\"b\", 1.5, tile]]} onScrollEnd={loadMore} />",
+      "notes": [
+        "Each tile carries a height ratio (height ÷ width) used for placement.",
+        "`columns` fixes the column count; otherwise it adapts to width.",
+        "`onScrollEnd` fires within `threshold` px of the bottom; set `loading` while fetching to show `template` placeholders.",
+        "`images` is an array of `[key, ratio, snippet]`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/SmartGridView"
+    },
+    {
+      "name": "SortHeading",
+      "summary": "A column heading with ascending and descending arrows that shows its rank in a multi-column sort.",
+      "css": "`sort_heading.css`",
+      "props": [
+        {
+          "name": "key",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sorts",
+          "type": "readonly Sort[]",
+          "required": true
+        },
+        {
+          "name": "ascTitle",
+          "type": "string",
+          "required": false,
+          "default": "\"Ascending\""
+        },
+        {
+          "name": "descTitle",
+          "type": "string",
+          "required": false,
+          "default": "\"Descending\""
+        },
+        {
+          "name": "ascLabel",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "descLabel",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "arrowsClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "buttonClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "arrow",
+          "type": "Snippet<[SortDirection]> | undefined",
+          "required": false
+        },
+        {
+          "name": "onsort",
+          "type": "((key: string, direction: SortDirection) => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<th><SortHeading key=\"name\" label=\"Name\" {sorts} onsort={(key, direction) => (sorts = headerSort(sorts, key, direction))} /></th>",
+      "notes": [
+        "Pair it with `headerSort` from the `sorts` module to compute the next `sorts`.",
+        "Usually rendered through ResourceTable's `sortHeading` slot; it also works in any `<th>`.",
+        "The column key prop is `key`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/SortHeading"
+    },
+    {
+      "name": "TextEditor",
+      "summary": "A markdown editor (CodeMirror) with a formatting toolbar, live styling, a character counter and insertable snippets such as `{{first_name}}`.",
+      "css": "`text_editor.css`, `field.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "rows",
+          "type": "number",
+          "required": false,
+          "default": "12"
+        },
+        {
+          "name": "maxLength",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "placeholder",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "readonly",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "labelled",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "error",
+          "type": "string | null | undefined",
+          "required": false
+        },
+        {
+          "name": "tools",
+          "type": "ReadonlyArray<readonly Tool[]>",
+          "required": false,
+          "default": "TOOL_GROUPS"
+        },
+        {
+          "name": "snippets",
+          "type": "readonly TextSnippet[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "insertLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Insert\""
+        },
+        {
+          "name": "toolbarLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Formatting\""
+        },
+        {
+          "name": "variableClass",
+          "type": "VariableClass | undefined",
+          "required": false
+        },
+        {
+          "name": "extensions",
+          "type": "Extension[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "toolbarClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "toolClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "dividerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "insertClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "menuClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "itemClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "sourceClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string, string, string, boolean]> | undefined",
+          "required": false
+        },
+        {
+          "name": "glyph",
+          "type": "Snippet<[FormatAction]> | undefined",
+          "required": false
+        },
+        {
+          "name": "insert",
+          "type": "Snippet<[string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "Snippet<[string, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "Snippet<[string, number | undefined, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "item",
+          "type": "Snippet<[TextSnippet]> | undefined",
+          "required": false
+        },
+        {
+          "name": "onchange",
+          "type": "((value: string) => void) | undefined",
+          "required": false
+        },
+        {
+          "name": "onblur",
+          "type": "(() => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<TextEditor label=\"Message\" formId=\"email\" value={body} onchange={(value) => (body = value)} maxLength={2000} snippets={[{ label: \"First name\", text: \"{{first_name}}\" }]} />",
+      "notes": [
+        "Needs the CodeMirror and markdown-it peer dependencies.",
+        "The value is markdown text.",
+        "`snippets` (`{ label, text }[]`) fills the Insert menu; `variableClass(name)` styles `{{name}}` tokens, e.g. to flag unknown variables.",
+        "`tools` limits the toolbar groups; `rows` sets the height in lines.",
+        "Read-only is `readonly`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/TextEditor"
+    },
+    {
+      "name": "TextboxA",
+      "summary": "A filled text field with the label below it; becomes a textarea when `height` is above 3.25.",
+      "css": "`textbox.a.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "maxLength",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "\"text\"|\"search\"|\"none\"|\"tel\"|\"url\"|\"email\"|\"numeric\"|\"decimal\"",
+          "required": false,
+          "default": "\"text\""
+        },
+        {
+          "name": "guard",
+          "type": "RegExp | undefined",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "required": false,
+          "default": "2.25"
+        },
+        {
+          "name": "wrap",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "text_size",
+          "type": "string",
+          "required": false,
+          "default": "\"text-base\""
+        },
+        {
+          "name": "border_active",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "border_error",
+          "type": "string",
+          "required": false,
+          "default": "\"border-red-600\""
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "labelClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null | undefined",
+          "required": false
+        },
+        {
+          "name": "secret",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Show password\""
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Hide password\""
+        },
+        {
+          "name": "showIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | HTMLTextAreaElement | undefined",
+          "required": false
+        }
+      ],
+      "events": [
+        "blur"
+      ],
+      "slots": [],
+      "example": "<TextboxA label=\"Postcode\" formId=\"address\" mode=\"numeric\" guard={/^\\d{0,5}$/} maxLength={5} />",
+      "notes": [
+        "`guard` is a RegExp the whole value must match; keystrokes that break it are rejected (e.g. `/^\\d{0,5}$/`).",
+        "`mode` sets the keyboard and input type (email, tel, numeric, decimal, …).",
+        "`height` is in rem; `wrap` lets long lines wrap.",
+        "`secret` makes it a password input with a show/hide button (needs `textbox.reveal.css`); `showIcon` / `hideIcon` take text or an icon, and `revealed` is the shown state (Svelte: `bind:revealed`; React: `revealed` + `onReveal`, or leave it uncontrolled).",
+        "Supports `bind:value`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/TextboxA"
+    },
+    {
+      "name": "TextboxB",
+      "summary": "An outlined text field whose label sits inside until focus or input, then floats onto the top border. A line under it is always reserved for the error so the layout never jumps.",
+      "css": "`textbox.b.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null | undefined",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "maxLength",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "TextMode",
+          "required": false,
+          "default": "\"text\""
+        },
+        {
+          "name": "guard",
+          "type": "RegExp | undefined",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "required": false,
+          "default": "2.75"
+        },
+        {
+          "name": "wrap",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "TextField | undefined",
+          "required": false
+        },
+        {
+          "name": "secret",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Show password\""
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Hide password\""
+        },
+        {
+          "name": "showIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "Snippet<[string | undefined, string]> | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<TextboxB label=\"Email\" formId=\"signup\" mode=\"email\" bind:value={email} error={emailError} />",
+      "notes": [
+        "The label and border-gap use the container background (`bg-inherit`); set `className` with a `bg-*` when the field sits on a coloured surface.",
+        "No placeholder: the label plays that role. Use TextboxC if you need one.",
+        "`caption` replaces the label and `message` the error line.",
+        "`secret` adds a password show/hide button, exactly as on TextboxA.",
+        "Supports `bind:value`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/TextboxB"
+    },
+    {
+      "name": "TextboxC",
+      "summary": "The same outlined field as TextboxB, but the label always sits on the border and a placeholder is allowed.",
+      "css": "`textbox.b.css`",
+      "props": [
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string | null | undefined",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "maxLength",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "mode",
+          "type": "TextMode",
+          "required": false,
+          "default": "\"text\""
+        },
+        {
+          "name": "guard",
+          "type": "RegExp | undefined",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "required": false,
+          "default": "2.75"
+        },
+        {
+          "name": "wrap",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "boxClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "TextField | undefined",
+          "required": false
+        },
+        {
+          "name": "secret",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "revealed",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "showLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Show password\""
+        },
+        {
+          "name": "hideLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Hide password\""
+        },
+        {
+          "name": "showIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "hideIcon",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "revealClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "caption",
+          "type": "Snippet<[string, string]> | undefined",
+          "required": false
+        },
+        {
+          "name": "message",
+          "type": "Snippet<[string | undefined, string]> | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<TextboxC label=\"Address\" formId=\"checkout\" placeholder=\"Street, city, postcode\" height={6} wrap bind:value={address} />",
+      "notes": [
+        "Shares `textbox.b.css` with TextboxB.",
+        "`secret` adds a password show/hide button, exactly as on TextboxA.",
+        "Supports `bind:value`."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/TextboxC"
+    },
+    {
+      "name": "Toggle",
+      "summary": "An on/off switch backed by a checkbox.",
+      "css": "`toggle.css`",
+      "props": [
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "trackClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "thumbClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "ref",
+          "type": "HTMLInputElement | undefined",
+          "required": false
+        }
+      ],
+      "events": [
+        "change"
+      ],
+      "slots": [
+        "default"
+      ],
+      "example": "<Toggle label=\"Notifications\" formId=\"settings\" on:change={(event) => (on = event.detail.currentTarget.checked)} />",
+      "notes": [
+        "Colour the on state with `trackClass=\"peer-checked:bg-indigo-600\"`.",
+        "The checkbox's `value` is \"true\" or \"false\" after a change."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Toggle"
+    },
+    {
+      "name": "Tooltip",
+      "summary": "Wraps a trigger and shows a small popup beside it on hover and keyboard focus.",
+      "css": "`tooltip.css`, which needs `dropdown.css` imported before it",
+      "props": [
+        {
+          "name": "content",
+          "type": "Content",
+          "required": true
+        },
+        {
+          "name": "preset",
+          "type": "DropdownPreset",
+          "required": false,
+          "default": "DropdownPreset.TOP"
+        },
+        {
+          "name": "open",
+          "type": "",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "interactive",
+          "type": "",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "zIndex",
+          "type": "number | undefined",
+          "required": false
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "wrapperClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "modalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "innerModalClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet<[TooltipTrigger]> | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "<Tooltip content=\"Saves a draft without publishing\">\n  {#snippet children(trigger)}<button {...trigger} class=\"field-box\">Save draft</button>{/snippet}\n</Tooltip>",
+      "notes": [
+        "`content` is a string or a snippet; it renders inside `role=\"tooltip\"`.",
+        "`preset` takes a DropdownPreset for the side (TOP by default, BOTTOM, LEFT, RIGHT).",
+        "It shows on hover (pointer devices only) and whenever focus is inside the trigger, so give non-focusable triggers `tabindex=\"0\"`.",
+        "`interactive` keeps it open while the pointer is over it so links inside can be clicked; `open` pins it visible.",
+        "The default bubble is dark; restyle it with `innerModalClass` (e.g. `bg-white text-zinc-700 border border-zinc-200`). `--tooltip-shift` sets the slide-in distance.",
+        "The tag's children are the trigger. Use `{#snippet children(trigger)}` to receive `aria-describedby` and spread it on the trigger element."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/Tooltip"
+    },
+    {
+      "name": "UploadPanel",
+      "summary": "A drop zone / file picker with an upload queue, progress bars, retry, and a Clear finished button. You provide the transport.",
+      "css": "`upload_panel.css`",
+      "props": [
+        {
+          "name": "upload",
+          "type": "UploadFile",
+          "required": true
+        },
+        {
+          "name": "isDuplicate",
+          "type": "((error: unknown) => boolean) | undefined",
+          "required": false
+        },
+        {
+          "name": "concurrency",
+          "type": "number",
+          "required": false,
+          "default": "2"
+        },
+        {
+          "name": "accept",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "multiple",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "formId",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "uploadsLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"Uploads\""
+        },
+        {
+          "name": "errorLabel",
+          "type": "string",
+          "required": false,
+          "default": "\"The upload failed\""
+        },
+        {
+          "name": "className",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "dropClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "headerClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "listClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "itemClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "barClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "fillClass",
+          "type": "string | undefined",
+          "required": false
+        },
+        {
+          "name": "drop",
+          "type": "Snippet<[boolean]> | undefined",
+          "required": false
+        },
+        {
+          "name": "heading",
+          "type": "Content | undefined",
+          "required": false
+        },
+        {
+          "name": "clear",
+          "type": "Content<[() => void]> | undefined",
+          "required": false
+        },
+        {
+          "name": "children",
+          "type": "Snippet | undefined",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "Snippet<[Upload]> | undefined",
+          "required": false
+        },
+        {
+          "name": "tag",
+          "type": "Snippet<[Upload]> | undefined",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "Snippet<[Upload]> | undefined",
+          "required": false
+        },
+        {
+          "name": "note",
+          "type": "Snippet<[Upload]> | undefined",
+          "required": false
+        },
+        {
+          "name": "failure",
+          "type": "Snippet<[Upload, () => void]> | undefined",
+          "required": false
+        },
+        {
+          "name": "onsettled",
+          "type": "(() => void) | undefined",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "example": "{#snippet folderTag()}<span class=\"text-xs\">{folder}</span>{/snippet}\n<UploadPanel upload={(file, progress) => api.upload(file, folder, progress)} tag={folderTag}>\n  <Select label=\"Upload into\" options={folders} value={folder} onchange={(value) => (folder = value)} />\n</UploadPanel>",
+      "notes": [
+        "`upload(file, progress)` must return a promise; call `progress(sent, total)` as bytes go out and throw to mark a failure (the error message is shown with Retry).",
+        "`isDuplicate(error)` turns a thrown error into a \"Duplicate\" note instead of a failure.",
+        "Children render under the drop zone, e.g. a Select for the destination folder; `tag(upload)` renders next to each file in the queue.",
+        "`concurrency` caps parallel uploads; `onSettled` fires when the queue empties.",
+        "`bind:this` exposes `add(files)` to queue files from elsewhere."
+      ],
+      "importPath": "@marthvon/gibbing-headless-ui-svelte/UploadPanel"
+    }
+  ],
+  "helpers": [
+    {
+      "path": "presets.client",
+      "summary": "`DropdownPreset` (TOP, BOTTOM, LEFT, RIGHT), `DropdownAnchor`, `PanelPreset` (TOP, BOTTOM, LEFT, RIGHT), `CardPreset` and `Interact` (HOVER, CLICK, HOVER_N_CLICK)."
+    },
+    {
+      "path": "sorts",
+      "summary": "`Sort`, `SortDirection` and `headerSort(sorts, key, direction, mode?)`, which returns the next sort list when a SortHeading arrow is clicked (clicking the active direction removes that sort)."
+    },
+    {
+      "path": "filters",
+      "summary": "`FilterSize` and the presets `SEARCH_SIZE`, `FILTER_SIZE`, `WIDE_SIZE`, `CLEAR_SIZE` for FilterRow's `sizes`."
+    },
+    {
+      "path": "phone",
+      "summary": "`DIAL_COUNTRIES`, `DialCountry`, `joinPhone`, `splitPhone`, `digitsOnly` and `phoneIssue(stored)` (returns an error message or null) for PhoneField values."
+    },
+    {
+      "path": "types/DatePicker",
+      "summary": "`DayCtx`, `WeekdayCtx` and `HeadingCtx`, the arguments of DatePicker's `day`, `weekday` and `heading` snippets."
+    },
+    {
+      "path": "utils",
+      "summary": "`ify(...classes)` joins truthy class names; `Content` is the string-or-snippet prop type."
+    }
+  ]
+}
